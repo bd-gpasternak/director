@@ -288,6 +288,14 @@ class ObjectModelTree(object):
     def findObjectByPath(self, path, separator='/'):
         return self.findObjectByPathList(path.split(separator))
 
+    def getObjectPath(self, obj, sep='/'):
+        names = []
+        item = self._getItemForObject(obj)
+        while item:
+            names.insert(0, self._itemToName[item])
+            item = item.parent()
+        return sep.join(names)
+
     def findObjectByPathList(self, pathList):
         try:
             rootName = pathList[0]
@@ -631,6 +639,9 @@ def findObjectByPath(path, separator='/'):
 
 def findTopLevelObjectByName(name):
     return _t.findTopLevelObjectByName(name)
+
+def getObjectPath(obj, sep='/'):
+    return _t.getObjectPath(obj, sep)
 
 def removeFromObjectModel(obj):
     _t.removeFromObjectModel(obj)
