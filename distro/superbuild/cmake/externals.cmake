@@ -257,8 +257,7 @@ endif()
 if(DD_QT_VERSION EQUAL 4)
   set(PythonQt_TAG patched-6)
 else()
-  set(PythonQt_TAG patched-8)
-  set(PythonQt_TAG support-python-gil)
+  set(PythonQt_TAG support-python-gil) # 483095f
 endif()
 
 ExternalProject_Add(PythonQt
