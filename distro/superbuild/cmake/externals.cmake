@@ -383,7 +383,7 @@ elseif(USE_PRECOMPILED_VTK)
 else()
 
   ExternalProject_Add(vtk
-    GIT_REPOSITORY git://vtk.org/VTK.git
+    GIT_REPOSITORY https://github.com/kitware/vtk
     GIT_TAG v8.2.0
 
     CMAKE_CACHE_ARGS
