@@ -24,6 +24,7 @@ set(python_files
   director/camerainteractor.py
   director/camerainterpolator.py
   director/cameraview.py
+  director/colors.py
   director/colorize.py
   director/componentgraph.py
   director/consoleapp.py
