@@ -641,7 +641,7 @@ ExternalProject_Add(director
     PythonQt
     ctkPythonConsole
     QtPropertyBrowser
-
+    pybind11
   )
 
 
