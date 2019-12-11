@@ -5,7 +5,7 @@ import subprocess
 
 def findElfFiles(searchPath, recursive=True):
     maxDepthArg = '-maxdepth 1' if not recursive else ''
-    filenames = subprocess.check_output('find "%s" %s -exec file {} \;| grep ELF | sed "s/:.*//"' % (searchPath, maxDepthArg), shell=True).splitlines()
+    filenames = subprocess.check_output('find "%s" %s -exec file {} \;| grep ELF | sed "s/:.*//"' % (searchPath, maxDepthArg), shell=True).decode().splitlines()
     return filenames
 
 
@@ -24,17 +24,17 @@ def main():
 
     for elfFile in files:
 
-        print 'processing:', elfFile
+        print('processing:', elfFile)
 
         # read the existing RPATH value from the elf file
-        rpath = subprocess.check_output('"%s" --print-rpath "%s"' % (patchElfCommand, elfFile), shell=True).strip()
+        rpath = subprocess.check_output('"%s" --print-rpath "%s"' % (patchElfCommand, elfFile), shell=True).decode().strip()
 
         # if the RPATH is empty, then we can skip this file
         if not rpath:
             continue
 
 
-        print '  old rpath:', rpath
+        print('  old rpath:', rpath)
         newPaths = []
 
         # loop over each path in the RPATH string and replace absoluate paths with $ORIGIN
@@ -54,7 +54,7 @@ def main():
             newPaths.append('$ORIGIN/%s' % relativePathToElf)
 
         newRpath = ':'.join(newPaths)
-        print '  new rpath:', newRpath
+        print('  new rpath:', newRpath)
 
         newElfFile = os.path.join(workDir, os.path.relpath(elfFile, baseDir))
         assert os.path.isfile(newElfFile)
