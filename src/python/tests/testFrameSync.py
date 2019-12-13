@@ -14,7 +14,7 @@ import weakref
 def main():
 
 
-    om.init(QtGui.QTreeWidget(), PythonQt.dd.ddPropertiesPanel())
+    om.init(QtGui.QTreeView(), PythonQt.dd.ddPropertiesPanel())
 
     # create a frame
     t1 = vtk.vtkTransform()

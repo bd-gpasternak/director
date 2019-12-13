@@ -14,7 +14,7 @@ def startApplication(enableQuitTimer=False):
 
 def main():
 
-    objectTree = QtGui.QTreeWidget()
+    objectTree = QtGui.QTreeView()
     propertiesPanel = PythonQt.dd.ddPropertiesPanel()
 
     om.init(objectTree, propertiesPanel)
@@ -33,7 +33,7 @@ def main():
     objectTree.show()
     propertiesPanel.show()
 
-    objectTree2 = QtGui.QTreeWidget()
+    objectTree2 = QtGui.QTreeView()
     propertiesPanel2 = PythonQt.dd.ddPropertiesPanel()
 
     tree = om.ObjectModelTree()
