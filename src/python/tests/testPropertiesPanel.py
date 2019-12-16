@@ -1,8 +1,15 @@
 import PythonQt
-from PythonQt import QtCore, QtGui
+from PythonQt import QtGui
 from director.timercallback import TimerCallback
 import director.objectmodel as om
 from director import propertyset
+
+
+class PropertyMonitor(object):
+
+    def __init__(self):
+        self.called = False
+
 
 def startApplication(enableQuitTimer=False):
     appInstance = QtGui.QApplication.instance()
@@ -13,42 +20,76 @@ def startApplication(enableQuitTimer=False):
     appInstance.exec_()
 
 
-
-
 def main():
-
-
     obj = om.ObjectModelItem('test')
-    obj.addProperty('double', 1.0, attributes=om.PropertyAttributes(decimals=2, minimum=0, maximum=100, singleStep=0.5))
-    obj.addProperty('double list', [1.0, 2.0, 3.0], attributes=om.PropertyAttributes(decimals=2, minimum=0, maximum=100, singleStep=0.5))
-
-    obj.addProperty('int', 1, attributes=om.PropertyAttributes(minimum=0, maximum=100, singleStep=5))
-    obj.addProperty('int list', [1, 2, 3], attributes=om.PropertyAttributes(minimum=0, maximum=100, singleStep=1))
-
-    obj.addProperty('bool', True)
-
-    obj.addProperty('str', 'value')
-
-    obj.addProperty('str list', 0, attributes=om.PropertyAttributes(enumNames=['value 1', 'value 2', 'value 3']))
-
+    obj.addProperty("parent/child/bool", True)
+    obj.addProperty("parent/child/bool2", True)
+    obj.addProperty("parent/child/list", [1, 2, 3])
+    obj.addProperty("parent/child/nested enum", 2,
+                    attributes=om.PropertyAttributes(enumNames=[0, 1, 2]))
+    obj.addProperty("parent/child/nested color", [1, 0.0, 0.25])
     obj.addProperty('color', [1.0, 0.5, 0.0])
 
+    obj.addProperty('str list', 1, attributes=om.PropertyAttributes(enumNames=['v0', 'v1', 'v2']))
+    obj.addProperty("int list", [1, 2, 3])
+
     panel = PythonQt.dd.ddPropertiesPanel()
-    panel.setBrowserModeToWidget()
+    panel.setBrowserModeToTree()
     panel.show()
 
-    panelConnector = propertyset.PropertyPanelConnector(obj.properties, panel)
+    _ = propertyset.PropertyPanelConnector(obj.properties, panel)
 
+    property_monitor = PropertyMonitor()
 
     def onPropertyChanged(propertySet, propertyName):
-        obj.properties.setPropertyAttribute('str list', 'enumNames', ['one','two','three'])
+        # NOTE this assert does not work in interactive mode.
+        # assert not property_monitor.called
+        property_monitor.called = True
 
     obj.properties.connectPropertyChanged(onPropertyChanged)
-    obj.setProperty('bool', False)
 
+    # Test enum
+    assert obj.getProperty('str list') == 1
+    assert obj.getPropertyEnumValue('str list') == 'v1'
+    obj.properties.setPropertyAttribute('str list', 'enumNames', ['one', 'two', 'three'])
     assert 'one' in obj.properties.getPropertyAttribute('str list', 'enumNames')
+    assert obj.getProperty('str list') == 1
+    assert obj.getPropertyEnumValue('str list') == 'two'
+    obj.setProperty('str list', 'three')
+    assert property_monitor.called
+    property_monitor.called = False
+    assert obj.getProperty('str list') == 2
+    assert obj.getPropertyEnumValue('str list') == 'three'
 
+    # Test nested enum
+    assert obj.getProperty('parent/child/nested enum') == 2
+    assert obj.getPropertyEnumValue('parent/child/nested enum') == 2
+    obj.setProperty('parent/child/nested enum', 0)
+    assert property_monitor.called
+    property_monitor.called = False
+    assert obj.getProperty('parent/child/nested enum') == 0
 
+    # Test nested set / get
+    obj.setProperty('parent/child/bool', False)
+    assert property_monitor.called
+    property_monitor.called = False
+    assert not obj.getProperty('parent/child/bool')
+
+    # Test nested list
+    obj.setProperty('parent/child/list', [4, 5, 6])
+    assert property_monitor.called
+    property_monitor.called = False
+    assert obj.getProperty('parent/child/list') == [4, 5, 6]
+
+    # Test nested color
+    assert obj.getProperty("parent/child/nested color") == [1, 0.0, 0.25]
+    obj.setProperty('parent/child/nested color', [0.0, 0.0, 1.0])
+    assert property_monitor.called
+    property_monitor.called = False
+    assert obj.getProperty("parent/child/nested color") == [0.0, 0.0, 1.0]
+
+    om.testObject = obj
+    om.testPanel = panel
     _pythonManager.consoleWidget().show()
     startApplication(enableQuitTimer=True)
 

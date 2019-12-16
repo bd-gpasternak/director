@@ -160,6 +160,31 @@ QtVariantProperty* ddPropertiesPanel::addEnumProperty(const QString& name, const
 }
 
 //-----------------------------------------------------------------------------
+QtVariantProperty* ddPropertiesPanel::addEnumSubProperty(const QString& name, const QVariant& value, QtVariantProperty* parent)
+{
+  if (!parent)
+  {
+    return 0;
+  }
+
+  int propertyType = this->Internal->Manager->enumTypeId();
+
+  QtVariantProperty* property = this->Internal->Manager->addProperty(propertyType, name);
+  property->setValue(value);
+
+  QtBrowserItem * browserItem = this->Internal->Browser->topLevelItem(parent);
+  QtTreePropertyBrowser* treeBrowser = qobject_cast<QtTreePropertyBrowser*>(this->Internal->Browser);
+  if (browserItem && treeBrowser)
+  {
+    treeBrowser->setExpanded(browserItem, false);
+  }
+
+  parent->addSubProperty(property);
+  this->Internal->SubPropertyMap[property] = parent;
+  return property;
+}
+
+//-----------------------------------------------------------------------------
 QtVariantProperty* ddPropertiesPanel::addSubProperty(const QString& name, const QVariant& value, QtVariantProperty* parent)
 {
   if (!parent)
@@ -168,8 +193,7 @@ QtVariantProperty* ddPropertiesPanel::addSubProperty(const QString& name, const 
   }
 
   int propertyType = value.type();
-  int subId = parent->subProperties().length();
-  QString subName = QString("%1[%2]").arg(name).arg(subId);
+  QString subName = QString("%1").arg(name);
 
   // Python may pass integer properties as QVariant::LongLong
   // but this type is not supported by the QtPropertyBrowser
@@ -188,6 +212,15 @@ QtVariantProperty* ddPropertiesPanel::addSubProperty(const QString& name, const 
 
   parent->addSubProperty(property);
   this->Internal->SubPropertyMap[property] = parent;
+
+  QtBrowserItem * browserItem = this->Internal->Browser->topLevelItem(parent);
+  QtTreePropertyBrowser* treeBrowser = dynamic_cast<QtTreePropertyBrowser*>(this->propertyBrowser());
+  if (browserItem && treeBrowser)
+  {
+    // TODO (rshanor) make public function to expand and collapse groups.
+    treeBrowser->setExpanded(browserItem, false);
+  }
+
   return property;
 }
 

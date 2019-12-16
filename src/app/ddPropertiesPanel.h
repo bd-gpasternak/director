@@ -28,6 +28,7 @@ public:
   QtVariantProperty* addProperty(const QString& name, const QVariant& value);
   QtVariantProperty* addEnumProperty(const QString& name, const QVariant& value);
   QtVariantProperty* addSubProperty(const QString& name, const QVariant& value, QtVariantProperty* parent);
+  QtVariantProperty* addEnumSubProperty(const QString& name, const QVariant& value, QtVariantProperty* parent);
   QtVariantProperty* getProperty(const QString& name) const;
   QtVariantProperty* getSubProperty(QtVariantProperty* parent, const QString& name) const;
   QtVariantProperty* getSubProperty(QtVariantProperty* parent, int childIndex) const;
