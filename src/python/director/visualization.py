@@ -2,6 +2,7 @@ import director.objectmodel as om
 import director.applogic as app
 from .shallowCopy import shallowCopy
 import director.vtkAll as vtk
+import director.vtkNumpy as vnp
 from director import filterUtils
 from director import transformUtils
 from director import callbacks
@@ -356,26 +357,34 @@ class Image2DItem(om.ObjectModelItem):
         self.image = image
 
         defaultWidth = 300
-
-        self.actor = vtk.vtkLogoRepresentation()
-        self.actor.SetImage(image)
-        self.actor.GetImageProperty().SetOpacity(1.0)
+        defaultHeight = self._getHeightForWidth(defaultWidth)
 
         actors = vtk.vtkPropCollection()
-        self.actor.GetActors2D(actors)
-        self.texture = actors.GetItemAsObject(0).GetTexture()
+        rep = vtk.vtkLogoRepresentation()
+        rep.GetActors2D(actors)
+        self.actor = actors.GetItemAsObject(0)
+        self.actor.GetProperty().SetOpacity(1.0)
+        self.texture = self.actor.GetTexture()
+        self.texture.SetInputData(image)
 
+        anchors = ['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right',
+                   'Top Center', 'Left Center', 'Right Center', 'Bottom Center']
+
+        rotations = ['No Rotation', '90 Degrees CCW', '180 Degrees', '90 Degrees CW']
         self.addProperty('Visible', True)
         self.addProperty('Anchor', 1,
-                         attributes=om.PropertyAttributes(enumNames=['Top Left', 'Top Right', 'Bottom Left', 'Bottom Right']))
+                         attributes=om.PropertyAttributes(enumNames=anchors))
         self.addProperty('Width', defaultWidth,
                          attributes=om.PropertyAttributes(minimum=0, maximum=9999, singleStep=50))
+        self.addProperty('Height', defaultHeight,
+                         attributes=om.PropertyAttributes(minimum=0, maximum=9999, singleStep=10))
+        self.addProperty('Rotation', 0,
+                         attributes=om.PropertyAttributes(enumNames=rotations))
+        self.addProperty('Offset', [0, 0,],
+                         attributes=om.PropertyAttributes(minimum=-9999, maximum=9999, singleStep=10))
+        self.addProperty('Fixed Aspect Ratio', True)
         self.addProperty('Alpha', 1.0,
                          attributes=om.PropertyAttributes(decimals=2, minimum=0, maximum=1.0, singleStep=0.1))
-
-        #defaultHeight = self._getHeightForWidth(defaultWidth)
-        #self.addProperty('Height', defaultHeight,
-        #                 attributes=om.PropertyAttributes(minimum=0, maximum=9999, singleStep=10))
 
         if view is not None:
             self.addToView(view)
@@ -384,21 +393,56 @@ class Image2DItem(om.ObjectModelItem):
         for view in self.views:
             view.render()
 
+    def _getAspectRatio(self):
+        w, h, _ = self.image.GetDimensions()
+        return w/float(h)
+
+    def _getHeightForWidth(self, width, rotation=0):
+        aspect = self._getAspectRatio()
+        if rotation in (1, 3):
+            aspect = 1 / aspect
+        return int(np.round(width / aspect))
+
+    def _getWidthForHeight(self, height, rotation=0):
+        aspect = self._getAspectRatio()
+        if rotation in (1, 3):
+            aspect = 1 / aspect
+        return int(np.round(height * aspect))
+
+    def _updateTCoords(self):
+        tcoords = self.actor.GetMapper().GetInput().GetPointData().GetTCoords()
+        t = vnp.numpy_support.vtk_to_numpy(tcoords)
+        t[:] = [[0., 0.],
+                [1., 0.],
+                [1., 1.],
+                [0., 1.]]
+        #t[:,1] = 1 - t[:,1] # flip up
+        #t[:,0] = 1 - t[:,0] # flip lr
+        rotation = self.getProperty('Rotation')
+        assert 0 <= rotation <= 3
+        t[:] = np.roll(t, rotation, axis=0)
+        tcoords.Modified()
+
+    def _updatePoints(self):
+        width = self.getProperty('Width')
+        height = self.getProperty('Height')
+        pts = vnp.getNumpyFromVtk(self.actor.GetMapper().GetInput(), 'Points')
+        x, y = 0.0, 0.0
+        pts[0] = (x, y, 0.0)
+        pts[1] = (x + width, y, 0.0)
+        pts[2] = (x + width, y + height, 0.0)
+        pts[3] = (x, y + height, 0.0)
+        self.actor.GetMapper().GetInput().GetPoints().Modified()
+
     def hasDataSet(self, dataSet):
-        return dataSet == self.image
+        return dataSet == self.image or dataSet == self.actor.GetMapper().GetInput()
 
     def hasActor(self, actor):
         return actor == self.actor
 
     def setImage(self, image):
         self.image = image
-        self.actor.SetImage(image)
-
-        # also set the image on the texture, otherwise
-        # the texture input won't update until the next
-        # render where this actor is visible
         self.texture.SetInputData(image)
-
         if self.getProperty('Visible'):
             self._renderAllViews()
 
@@ -406,65 +450,85 @@ class Image2DItem(om.ObjectModelItem):
         if view in self.views:
             return
         self.views.append(view)
-
-        self._updatePositionCoordinates(view)
-
+        self._update()
         view.renderer().AddActor(self.actor)
         view.render()
 
-    def _getHeightForWidth(self, image, width):
-        w, h, _ = image.GetDimensions()
-        aspect = w/float(h)
-        return int(np.round(width / aspect))
+    def _getAnchorCoordinates(self, anchor, width, height):
+        return {
+            'Top Left': ((0.0, 1.0), (0.0, -height)),
+            'Top Right': ((1.0, 1.0), (-width, -height)),
+            'Bottom Left': ((0.0, 0.0), (0.0, 0.0)),
+            'Bottom Right': ((1.0, 0.0), (-width, 0.0)),
+            'Top Center': ((0.5, 1.0), (-width / 2.0, -height)),
+            'Left Center':  ((0.0, 0.5),  (0.0, -height / 2.0)),
+            'Right Center': ((1.0, 0.5), (-width, -height / 2.0)),
+            'Bottom Center': ((0.5, 0.0),  (-width / 2.0, 0.0))
+        }[anchor]
 
-    def _updatePositionCoordinates(self, view):
+    def _updatePositionCoordinates(self):
+        if not self.views:
+            return
+        view = self.views[0]
 
         width = self.getProperty('Width')
-        height = self._getHeightForWidth(self.image, width)
-
-        pc0 = vtk.vtkCoordinate()
-        pc1 = self.actor.GetPositionCoordinate()
-        pc2 = self.actor.GetPosition2Coordinate()
-
-        for pc in [pc0, pc1, pc2]:
-            pc.SetViewport(view.renderer())
-
-        pc0.SetReferenceCoordinate(None)
-        pc0.SetCoordinateSystemToNormalizedDisplay()
-        pc1.SetReferenceCoordinate(pc0)
-        pc1.SetCoordinateSystemToDisplay()
-
+        height = self.getProperty('Height')
         anchor = self.getPropertyEnumValue('Anchor')
-        if anchor == 'Top Left':
-            pc0.SetValue(0.0, 1.0)
-            pc1.SetValue(0.0, -height)
+        offset = self.getProperty('Offset')
+        normalCoord, displayCoord = self._getAnchorCoordinates(anchor, width, height)
 
-        elif anchor == 'Top Right':
-            pc0.SetValue(1.0, 1.0)
-            pc1.SetValue(-width, -height)
+        anchorNormalCoord = vtk.vtkCoordinate()
+        anchorDisplayCoord = vtk.vtkCoordinate()
+        bottomLeftCoord = self.actor.GetPositionCoordinate()
+        topRightCoord = self.actor.GetPosition2Coordinate()
 
-        elif anchor == 'Bottom Left':
-            pc0.SetValue(0.0, 0.0)
-            pc1.SetValue(0.0, 0.0)
+        for coord in [anchorNormalCoord, anchorDisplayCoord, topRightCoord, bottomLeftCoord]:
+            coord.SetViewport(view.renderer())
 
-        elif anchor == 'Bottom Right':
-            pc0.SetValue(1.0, 0.0)
-            pc1.SetValue(-width, 0.0)
+        anchorNormalCoord.SetCoordinateSystemToNormalizedDisplay()
+        anchorNormalCoord.SetReferenceCoordinate(None)
+        anchorNormalCoord.SetValue(normalCoord[0], normalCoord[1])
 
-        pc2.SetCoordinateSystemToDisplay()
-        pc2.SetReferenceCoordinate(pc1)
-        pc2.SetValue(width, height)
+        anchorDisplayCoord.SetCoordinateSystemToDisplay()
+        anchorDisplayCoord.SetReferenceCoordinate(anchorNormalCoord)
+        anchorDisplayCoord.SetValue(displayCoord[0], displayCoord[1])
 
+        bottomLeftCoord.SetCoordinateSystemToDisplay()
+        bottomLeftCoord.SetReferenceCoordinate(anchorDisplayCoord)
+        bottomLeftCoord.SetValue(offset[0], offset[1])
+
+        topRightCoord.SetCoordinateSystemToDisplay()
+        topRightCoord.SetReferenceCoordinate(bottomLeftCoord)
+        topRightCoord.SetValue(width, height)
+
+    def _update(self):
+        self._updatePositionCoordinates()
+        self._updateTCoords()
+        self._updatePoints()
 
     def _onPropertyChanged(self, propertySet, propertyName):
         om.ObjectModelItem._onPropertyChanged(self, propertySet, propertyName)
         if propertyName == 'Alpha':
-            self.actor.GetImageProperty().SetOpacity(self.getProperty(propertyName))
+            self.actor.GetProperty().SetOpacity(self.getProperty(propertyName))
         elif propertyName == 'Visible':
             self.actor.SetVisibility(self.getProperty(propertyName))
-        elif propertyName in ('Width', 'Height', 'Anchor'):
-            if self.views:
-                self._updatePositionCoordinates(self.views[0])
+
+        fixedAspect = self.getProperty('Fixed Aspect Ratio')
+        if fixedAspect:
+            w = self.getProperty('Width')
+            h = self.getProperty('Height')
+            rotation = self.getProperty('Rotation')
+            if propertyName == 'Height':
+                self.setProperty('Width', self._getWidthForHeight(h, rotation))
+            elif propertyName == 'Width' or propertyName == 'Fixed Aspect Ratio':
+                self.setProperty('Height', self._getHeightForWidth(w, rotation))
+            elif propertyName == 'Rotation':
+                if self._getHeightForWidth(w, rotation) != h:
+                    self.setProperty('Width', h)
+                    self.setProperty('Height', w)
+
+        if propertyName in ('Width', 'Height', 'Rotation', 'Anchor', 'Offset'):
+            self._update()
         self._renderAllViews()
 
     def onRemoveFromObjectModel(self):
