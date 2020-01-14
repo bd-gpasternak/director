@@ -7,10 +7,7 @@ endmacro()
 macro(setup_qt)
   get_ubuntu_version()
 
-  set(_default_qt_version 4)
-  if (ubuntu_version EQUAL 18.04)
-    set(_default_qt_version 5)
-  endif()
+  set(_default_qt_version 5)
 
   set(DD_QT_VERSION ${_default_qt_version} CACHE STRING "Selected Qt version")
   set_property(CACHE DD_QT_VERSION PROPERTY STRINGS 4 5)
