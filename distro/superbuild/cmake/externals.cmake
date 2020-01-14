@@ -298,7 +298,7 @@ ExternalProject_Add(ctkPythonConsole
 if(DD_QT_VERSION EQUAL 4)
   set(QtPropertyBrowser_TAG baf10af)
 else()
-  set(QtPropertyBrowser_TAG 72a0272)
+  set(QtPropertyBrowser_TAG 54196b6)
 endif()
 
 ExternalProject_Add(QtPropertyBrowser
