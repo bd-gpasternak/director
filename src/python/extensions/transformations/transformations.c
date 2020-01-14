@@ -1,65 +1,54 @@
+/* transformations.c */
 
-
-/* transformations.c
-
-A Python C extension module for homogeneous transformation matrices and
-quaternions.
-
-Refer to the transformations.py module for documentation and tests.
-
-:Author:
-  `Christoph Gohlke <http://www.lfd.uci.edu/~gohlke/>`_
-
-:Organization:
-  Laboratory for Fluorescence Dynamics, University of California, Irvine
-
-:Version: 2015.07.18
-
-Install
--------
-Use this Python distutils setup script to build the extension module::
-
-  # setup.py
-  # Usage: ``python setup.py build_ext --inplace``
-  from distutils.core import setup, Extension
-  import numpy
-  setup(name='_transformations',
-        ext_modules=[Extension('_transformations', ['transformations.c'],
-                               include_dirs=[numpy.get_include()])])
-
-License
--------
-Copyright (c) 2007-2015, Christoph Gohlke
-Copyright (c) 2007-2015, The Regents of the University of California
-Produced at the Laboratory for Fluorescence Dynamics
+/*
+Copyright (c) 2006-2020, Christoph Gohlke
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 
-* Redistributions of source code must retain the above copyright
-  notice, this list of conditions and the following disclaimer.
-* Redistributions in binary form must reproduce the above copyright
-  notice, this list of conditions and the following disclaimer in the
-  documentation and/or other materials provided with the distribution.
-* Neither the name of the copyright holders nor the names of any
-  contributors may be used to endorse or promote products derived
-  from this software without specific prior written permission.
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
-CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
-INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
-CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-POSSIBILITY OF SUCH DAMAGE.
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#define _VERSION_ "2015.07.18"
+/* Homogeneous Transformation Matrices and Quaternions.
+
+Transformations.c is a Python C extension module to provide faster
+implementations for the transformations package.
+
+Refer to the transformations.py module for documentation and tests.
+
+:Author:
+  `Christoph Gohlke <https://www.lfd.uci.edu/~gohlke/>`_
+
+:Organization:
+  Laboratory for Fluorescence Dynamics. University of California, Irvine
+
+:License: BSD 3-Clause
+
+:Version: 2020.1.1
+*/
+
+#define _VERSION_ "2020.1.1"
 
 #define WIN32_LEAN_AND_MEAN
 #define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -215,7 +204,7 @@ int tridiagonalize_symmetric_44(
 
 /*
 Return largest eigenvalue of symmetric tridiagonal matrix.
-Matrix Algorithms: Volume II: Eigensystems. By GW Stewart. 
+Matrix Algorithms: Volume II: Eigensystems. By GW Stewart.
 Chapter 3. page 197.
 */
 double max_eigenvalue_of_tridiag_44(
@@ -2127,7 +2116,8 @@ static int axis2tuple(
         char *s = PyString_AS_STRING(axes);
 #else
     if (PyUnicode_Check(axes) && (PyUnicode_GetSize(axes) == 4)) {
-        char *s = PyBytes_AsString(PyUnicode_AsASCIIString(axes));
+        PyObject* axes_ascii = PyUnicode_AsASCIIString(axes);
+        char *s = PyBytes_AsString(axes_ascii);
 #endif
         int hash = *((int *)s);
         switch (hash)
@@ -2208,6 +2198,9 @@ static int axis2tuple(
             PyErr_Format(PyExc_ValueError, "invalid axes string");
             return -1;
         }
+#if PY_MAJOR_VERSION > 2
+        Py_XDECREF(axes_ascii);
+#endif
         return 0;
     }
 
@@ -2447,8 +2440,7 @@ py_quaternion_from_euler(
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "ddd|O", kwlist,
         &ai, &aj, &ak, &axes)) goto _fail;
 
-    if (axes != NULL)
-        Py_INCREF(axes);
+    Py_XINCREF(axes);
 
     result = (PyArrayObject*)PyArray_SimpleNew(1, &dims, NPY_DOUBLE);
     if (result == NULL) {
@@ -3456,7 +3448,7 @@ py_vector_norm(
 
     } else { /* iterate over elements of specified axis */
         Py_ssize_t dstride, s, size;
-        Py_ssize_t i, j;
+        int i, j;
         int n = PyArray_NDIM(data);
 
         /* calculate shape of output array */
@@ -4052,8 +4044,6 @@ static PyMethodDef module_methods[] = {
     {NULL, NULL, 0, NULL} /* Sentinel */
 };
 
-#if PY_MAJOR_VERSION >= 3
-
 struct module_state {
     PyObject *error;
 };
@@ -4071,29 +4061,19 @@ static int module_clear(PyObject *m) {
 }
 
 static struct PyModuleDef moduledef = {
-        PyModuleDef_HEAD_INIT,
-        "_transformations",
-        NULL,
-        sizeof(struct module_state),
-        module_methods,
-        NULL,
-        module_traverse,
-        module_clear,
-        NULL
+    PyModuleDef_HEAD_INIT,
+    "_transformations",
+    NULL,
+    sizeof(struct module_state),
+    module_methods,
+    NULL,
+    module_traverse,
+    module_clear,
+    NULL
 };
-
-#define INITERROR return NULL
 
 PyMODINIT_FUNC
 PyInit__transformations(void)
-
-#else
-
-#define INITERROR return
-
-PyMODINIT_FUNC
-init_transformations(void)
-#endif
 {
     PyObject *module;
 
@@ -4101,36 +4081,25 @@ init_transformations(void)
     PyOS_snprintf(doc, sizeof(module_doc) + sizeof(_VERSION_),
                   module_doc, _VERSION_);
 
-#if PY_MAJOR_VERSION >= 3
     moduledef.m_doc = doc;
     module = PyModule_Create(&moduledef);
-#else
-    module = Py_InitModule3("_transformations", module_methods, doc);
-#endif
 
     PyMem_Free(doc);
 
     if (module == NULL)
-        INITERROR;
+        return NULL;
 
     if (_import_array() < 0) {
         Py_DECREF(module);
-        INITERROR;
+        return NULL;
     }
 
     {
-#if PY_MAJOR_VERSION < 3
-    PyObject *s = PyString_FromString(_VERSION_);
-#else
     PyObject *s = PyUnicode_FromString(_VERSION_);
-#endif
     PyObject *dict = PyModule_GetDict(module);
     PyDict_SetItemString(dict, "__version__", s);
     Py_DECREF(s);
     }
 
-#if PY_MAJOR_VERSION >= 3
     return module;
-#endif
 }
-
