@@ -23,6 +23,9 @@ function(wrap_python library_name sources)
   endif(WIN32 AND NOT CYGWIN)
 
   install(TARGETS ${library_name}Python DESTINATION ${DD_INSTALL_PYTHON_DIR}/director)
-  install(TARGETS ${library_name}PythonD DESTINATION ${DD_INSTALL_LIB_DIR})
+  install(TARGETS ${library_name}PythonD
+      RUNTIME DESTINATION ${DD_INSTALL_BIN_DIR}
+      LIBRARY DESTINATION ${DD_INSTALL_LIB_DIR}
+      ARCHIVE DESTINATION ${DD_INSTALL_LIB_DIR})
 
 endfunction()
