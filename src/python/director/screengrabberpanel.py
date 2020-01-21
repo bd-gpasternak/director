@@ -1,45 +1,29 @@
 import PythonQt
-from PythonQt import QtCore, QtGui, QtUiTools
+from PythonQt import QtCore, QtGui
 from director import applogic as app
+from director import callbacks
+from director.flags import Flags
 from director.timercallback import TimerCallback
 from director.simpletimer import FPSCounter
+from director.qtutils import loadUi
 from director import ioUtils as io
 import director.vtkAll as vtk
 import os
 import glob
 import time
 import datetime
-import itertools
-
-def addWidgetsToDict(widgets, d):
-
-    for widget in widgets:
-        if widget.objectName:
-            d[str(widget.objectName)] = widget
-        addWidgetsToDict(widget.children(), d)
-
-
-class WidgetDict(object):
-
-    def __init__(self, widgets):
-        addWidgetsToDict(widgets, self.__dict__)
-
 
 
 class ScreenGrabberPanel(object):
 
+    events = Flags('RECORDING_TOGGLED')
+
     def __init__(self, view):
 
         self.view = view
-
-        loader = QtUiTools.QUiLoader()
-        uifile = QtCore.QFile(':/ui/ddScreenGrabber.ui')
-        assert uifile.open(uifile.ReadOnly)
-
         self.frameCount = 0
-
-        self.widget = loader.load(uifile)
-        self.ui = WidgetDict(self.widget.children())
+        self.callbacks = callbacks.CallbackRegistry(self.events._fields)
+        self.widget, self.ui = loadUi(':/ui/ddScreenGrabber.ui')
 
         self.ui.lockViewSizeCheck.connect('clicked()', self.onLockViewSize)
         self.ui.screenshotOutputBrowseButton.connect('clicked()', self.onChooseScreenshotOutputDir)
@@ -53,13 +37,19 @@ class ScreenGrabberPanel(object):
         self.ui.viewHeightSpin.connect('valueChanged(int)', self.onViewSizeChanged)
         self.ui.viewWidthSpin.connect('valueChanged(int)', self.onViewSizeChanged)
 
+        # Hidden until a capture trigger is added
+        self.ui.captureMethodLabel.setVisible(False)
+        self.ui.captureMethodCombo.setVisible(False)
+        self.ui.captureMethodCombo.connect('currentIndexChanged(int)', self.onCaptureMethodChanged)
+
         self.updateViewSize()
         self.onLockViewSize()
 
         self.recordTimer = QtCore.QTimer()
         self.recordTimer.connect('timeout()', self.onRecordTimer)
         self.fpsCounter = FPSCounter()
-
+        self.fpsCounter.averageComputer.alpha = 1.0
+        self.captureTriggers = []
         self.eventFilter = PythonQt.dd.ddPythonEventFilter()
         self.ui.scrollArea.installEventFilter(self.eventFilter)
         self.eventFilter.addFilteredEventType(QtCore.QEvent.Resize)
@@ -123,20 +113,28 @@ class ScreenGrabberPanel(object):
         saveScreenshot(self.view, filename)
         app.getMainWindow().statusBar().showMessage('Saved: ' + filename, 2000)
 
+    def onCaptureMethodChanged(self, index):
+        self.ui.captureRateLabel.setVisible(index == 0)
+        self.ui.captureRateSpin.setVisible(index == 0)
+
+    def addCaptureTrigger(self, name):
+        trigger = CaptureTrigger(self)
+        self.captureTriggers.append(trigger)
+        self.ui.captureMethodCombo.addItem(name)
+        self.ui.captureMethodCombo.setVisible(True)
+        self.ui.captureMethodLabel.setVisible(True)
+        return trigger
+
+    def getActiveCaptureTrigger(self):
+        captureMethod = self.ui.captureMethodCombo.currentIndex
+        return self.captureTriggers[captureMethod - 1] if captureMethod > 0 else None
+
+    def setActiveCaptureTrigger(self, trigger):
+        self.ui.captureMethodCombo.currentIndex = self.captureTriggers.index(trigger) + 1
 
     def nextMovieFileName(self):
         filename = os.path.join(self.movieOutputDirectory(), 'frame_%07d.tiff' % self.frameCount)
-        self.frameCount += 1
         return filename
-
-    def updateRecordingStats(self):
-        isRecordMode = self.ui.recordMovieButton.checked
-
-        currentRate = 0.0
-        writeQueue = 0.0
-
-        self.ui.currentRateValueLabel.setText('%.1f' % currentRate)
-        self.ui.writeQueueValueLabel.setText('%.1f' % currentRate)
 
     def isRecordMode(self):
         return self.ui.recordMovieButton.checked
@@ -150,37 +148,35 @@ class ScreenGrabberPanel(object):
         self.ui.captureRateSpin.setEnabled(not isRecordMode)
         self.ui.captureRateLabel.setEnabled(not isRecordMode)
         self.ui.moveOutputDirectoryLabel.setEnabled(not isRecordMode)
+        self.ui.captureMethodLabel.setEnabled(not isRecordMode)
+        self.ui.captureMethodCombo.setEnabled(not isRecordMode)
         self.ui.currentRateLabel.setEnabled(isRecordMode)
         self.ui.currentRateValueLabel.setEnabled(isRecordMode)
-        self.ui.writeQueueLabel.setEnabled(isRecordMode)
-        self.ui.writeQueueValueLabel.setEnabled(isRecordMode)
-
-        self.updateRecordingStats()
+        self.ui.capturedFramesLabel.setEnabled(isRecordMode)
+        self.ui.capturedFramesValueLabel.setEnabled(isRecordMode)
+        self.ui.currentRateValueLabel.setText('0.0')
+        if isRecordMode:
+            self.ui.capturedFramesValueLabel.setText('0')
 
     def onRecordMovie(self):
-        # Enforce even width number, otherwise avconv will fail
+        # Enforce even width number, otherwise ffmpeg will fail
         _width = (self.view.width if self.view.width % 2 == 0 else self.view.width + 1)
         _height = (self.view.height if self.view.height % 2 == 0 else self.view.height + 1)
         self.view.setFixedSize(_width, _height)
-
+        self.updateRecordingButtons()
         if self.isRecordMode():
-            self.startRecording()
+            if self.shouldStartRecording():
+                self.startRecording()
         else:
             self.stopRecording()
-
         self.updateRecordingButtons()
 
-    def startRecording(self):
-
-        self.frameCount = 0
-
+    def shouldStartRecording(self):
         if not self.ensureDirectoryIsWritable(self.movieOutputDirectory()):
             self.ui.recordMovieButton.checked = False
-            return
+            return False
 
-        existingFiles = glob.glob(os.path.join(self.movieOutputDirectory(), '*.tiff'))
-        if len(existingFiles):
-
+        if self.getExistingFiles():
             choice = QtGui.QMessageBox.question(app.getMainWindow(), 'Continue?',
               'There are existing image files in the output directory.  They will be deleted prior to recording.  Continue?',
               QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
@@ -188,33 +184,56 @@ class ScreenGrabberPanel(object):
 
             if choice == QtGui.QMessageBox.No:
                 self.ui.recordMovieButton.checked = False
-                return
+                return False
 
-        for fileToRemove in existingFiles:
+        return True
+
+    def getExistingFiles(self):
+        return glob.glob(os.path.join(self.movieOutputDirectory(), '*.tiff'))
+
+    def removeExistingFiles(self):
+        for fileToRemove in self.getExistingFiles():
             os.remove(fileToRemove)
 
-        self.fpsCounter.tick()
-        self.startT = time.time()
-        interval = int(round(1000.0 / self.captureRate()))
+    def connectRecordingToggled(self, callback):
+        return self.callbacks.connect(self.events.RECORDING_TOGGLED, callback)
 
+    def _notifyRecordingToggled(self):
+        self.callbacks.process(self.events.RECORDING_TOGGLED, self.isRecordMode())
+
+    def startRecording(self):
+        self.frameCount = 0
+        self.fpsCounter.reset()
+        self.removeExistingFiles()
+        interval = int(round(1000.0 / self.captureRate()))
         self.recordTimer.setInterval(interval)
         self.recordTimer.start()
+        self._notifyRecordingToggled()
 
     def stopRecording(self):
         self.recordTimer.stop()
+        self.onLockViewSize()
+        self._notifyRecordingToggled()
         if self.frameCount > 0:
             self.showEncodingDialog()
 
     def showEncodingDialog(self):
 
+        frameRate = self.captureRate()
+        if self.getActiveCaptureTrigger():
+            frameRate = self.getActiveCaptureTrigger().expectedFrameRate
+            if not frameRate:
+                frameRate = 'INSERT_FRAMERATE'
+
         msg = 'Recorded %d frames.  For encoding, use this command line:\n\n\n' % self.frameCount
-        msg += '    cd "%s"\n\n' % self.movieOutputDirectory()
-        msg += '    avconv -r %d -i frame_%%07d.tiff \\\n' % self.captureRate()
-        msg += '           -vcodec libx264 \\\n'
-        msg += '           -preset slow \\\n'
-        msg += '           -crf 18 \\\n'
-        msg += '           -pix_fmt yuv420p \\\n'
-        msg += '           output.mp4\n\n\n'
+        msg += 'cd "%s"\n\n' % self.movieOutputDirectory()
+        msg += 'ffmpeg -r %s \\\n' % frameRate
+        msg += '  -i frame_%07d.tiff \\\n'
+        msg += '  -vcodec libx264 \\\n'
+        msg += '  -preset slow \\\n'
+        msg += '  -crf 18 \\\n'
+        msg += '  -pix_fmt yuv420p \\\n'
+        msg += '  output.mp4\n\n\n'
 
         app.showInfoMessage(msg, title='Recording Stopped')
 
@@ -256,14 +275,29 @@ class ScreenGrabberPanel(object):
             self.unlockViewSize()
 
     def onRecordTimer(self):
+        if not self.getActiveCaptureTrigger():
+            self.captureMovieFrame()
+        self.ui.currentRateValueLabel.text = '%.1f' % self.fpsCounter.getAverageFPS()
 
+    def captureMovieFrame(self):
         saveScreenshot(self.view, self.nextMovieFileName(), shouldRender=False)
-
+        self.frameCount += 1
         self.fpsCounter.tick()
-        tNow = time.time()
-        if tNow - self.startT > 1.0:
-            self.startT = tNow
-            self.ui.currentRateValueLabel.text = '%.1f' % self.fpsCounter.getAverageFPS()
+        self.ui.capturedFramesValueLabel.text = str(self.frameCount)
+
+
+class CaptureTrigger(object):
+
+    def __init__(self, screenGrabber):
+        self.expectedFrameRate = None
+        self.screenGrabber = screenGrabber
+
+    def captureFrame(self):
+        if self.isEnabled():
+            self.screenGrabber.captureMovieFrame()
+
+    def isEnabled(self):
+        return self.screenGrabber.isRecordMode() and self.screenGrabber.getActiveCaptureTrigger() == self
 
 
 def saveScreenshot(view, filename, shouldRender=True, shouldWrite=True):

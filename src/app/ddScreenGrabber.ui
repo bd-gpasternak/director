@@ -42,8 +42,8 @@
        <rect>
         <x>0</x>
         <y>0</y>
-        <width>263</width>
-        <height>536</height>
+        <width>267</width>
+        <height>567</height>
        </rect>
       </property>
       <layout class="QGridLayout" name="gridLayout_3">
@@ -112,14 +112,14 @@
           <enum>QFrame::Raised</enum>
          </property>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="2" column="0">
+          <item row="3" column="0">
            <widget class="QLabel" name="captureRateLabel">
             <property name="text">
              <string>Capture rate:</string>
             </property>
            </widget>
           </item>
-          <item row="3" column="0" colspan="2">
+          <item row="4" column="0" colspan="2">
            <widget class="QPushButton" name="recordMovieButton">
             <property name="text">
              <string>Record Video Frames</string>
@@ -139,14 +139,14 @@
             </property>
            </widget>
           </item>
-          <item row="4" column="0">
+          <item row="5" column="0">
            <widget class="QLabel" name="currentRateLabel">
             <property name="text">
              <string>Current rate:</string>
             </property>
            </widget>
           </item>
-          <item row="2" column="1">
+          <item row="3" column="1">
            <widget class="QSpinBox" name="captureRateSpin">
             <property name="suffix">
              <string> fps</string>
@@ -169,14 +169,14 @@
             </property>
            </widget>
           </item>
-          <item row="5" column="0">
-           <widget class="QLabel" name="writeQueueLabel">
+          <item row="6" column="0">
+           <widget class="QLabel" name="capturedFramesLabel">
             <property name="text">
-             <string>Write queue:</string>
+             <string>Captured frames:</string>
             </property>
            </widget>
           </item>
-          <item row="4" column="1">
+          <item row="5" column="1">
            <widget class="QLabel" name="currentRateValueLabel">
             <property name="text">
              <string>0</string>
@@ -186,8 +186,8 @@
             </property>
            </widget>
           </item>
-          <item row="5" column="1">
-           <widget class="QLabel" name="writeQueueValueLabel">
+          <item row="6" column="1">
+           <widget class="QLabel" name="capturedFramesValueLabel">
             <property name="text">
              <string>0</string>
             </property>
@@ -201,6 +201,22 @@
             <property name="text">
              <string>Browse...</string>
             </property>
+           </widget>
+          </item>
+          <item row="2" column="0">
+           <widget class="QLabel" name="captureMethodLabel">
+            <property name="text">
+             <string>Capture method:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="captureMethodCombo">
+            <item>
+             <property name="text">
+              <string>On Timer</string>
+             </property>
+            </item>
            </widget>
           </item>
          </layout>

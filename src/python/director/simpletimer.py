@@ -23,10 +23,13 @@ class FPSCounter(object):
         self.printToConsole = False
 
     def tick(self):
-        newAverage =  self.averageComputer.timer.elapsed() > self.averageComputer.timeWindow
-        self.averageComputer.update(1)
-        if newAverage and self.printToConsole:
+        hasNewAverage = self.averageComputer.update(1)
+        if hasNewAverage and self.printToConsole:
             print('fps:', self.getAverageFPS())
+        return hasNewAverage
+
+    def reset(self):
+        self.averageComputer.reset()
 
     def getAverageFPS(self):
         return self.averageComputer.getAverage()
@@ -60,24 +63,23 @@ class MovingAverageComputer(object):
 
     def update(self, quantitySinceLastUpdate):
         self.quantityThisWindow += quantitySinceLastUpdate
-        self._updateAverage()
+        return self._updateAverage()
 
     def getAverage(self):
         self._updateAverage()
         return self.average
 
+    def reset(self):
+        self.timer.reset()
+        self.quantityThisWindow = 0.0
+        self.average = 0.0
+
     def _updateAverage(self):
-
         elapsedTime = self.timer.elapsed()
-
         if elapsedTime > self.timeWindow:
-
-            # compute FPS for this time window
             averageThisWindow = self.quantityThisWindow / elapsedTime
-
-            # update moving average
-            self.average = self.alpha * averageThisWindow + (1.0 - self.alpha) * self.average
-
-            # reset
-            self.timer.reset()
-            self.quantityThisWindow = 0.0
+            previousAverage = self.average
+            self.reset()
+            self.average = self.alpha * averageThisWindow + (1.0 - self.alpha) * previousAverage
+            return True
+        return False
