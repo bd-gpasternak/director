@@ -168,7 +168,7 @@ class DRCArgParser(object):
 
         parser.add_argument('--data', type=str, nargs='+', dest='data_files',
                             default=[], action='append', metavar='filename',
-                            help='data files to load at startup')
+                            help='geometry data files to load at startup (.obj .ply .stl)')
 
         parser.add_argument('--script', '--startup', type=str, nargs='+', dest='scripts',
                             default=[], action='append', metavar='filename',
