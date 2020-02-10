@@ -250,7 +250,12 @@ class PolyDataItem(om.ObjectModelItem):
         title = self.properties.getPropertyEnumValue('Color By')
         view = self.views[0]
         lut = self.mapper.GetLookupTable()
-        self.scalarBarWidget = createScalarBarWidget(view, lut, title)
+        if self.scalarBarWidget:
+            bar = self.scalarBarWidget.GetScalarBarActor()
+            bar.SetTitle(title)
+            bar.SetLookupTable(lut)
+        else:
+            self.scalarBarWidget = createScalarBarWidget(view, lut, title)
         self._renderAllViews()
 
     def _setScalarBarTextColor(self, color=(0,0,0)):
