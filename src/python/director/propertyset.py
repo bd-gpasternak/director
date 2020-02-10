@@ -1,3 +1,4 @@
+import functools
 import re
 import numpy as np
 from collections import OrderedDict
@@ -9,6 +10,7 @@ from director.fieldcontainer import FieldContainer
 from director.timercallback import TimerCallback
 
 
+@functools.lru_cache(maxsize=100)
 def cleanPropertyName(s):
     """
     Generate a valid python property name by replacing all non-alphanumeric characters with
