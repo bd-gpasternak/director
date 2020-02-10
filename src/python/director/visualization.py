@@ -125,7 +125,8 @@ class PolyDataItem(om.ObjectModelItem):
 
         self.polyData.GetPointData().SetActiveScalars(arrayName)
 
-        if not lut:
+        isColorsArray = array.GetNumberOfComponents() == 3 and array.GetDataType() == vtk.VTK_UNSIGNED_CHAR
+        if not lut and not isColorsArray:
             lut = self._getDefaultColorMap(array, scalarRange)
 
         #self.mapper.SetColorModeToMapScalars()
