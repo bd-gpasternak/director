@@ -165,13 +165,12 @@ class PropertySet(object):
         self.callbacks.process(self.PROPERTY_ADDED_SIGNAL, self, propertyName)
 
     def setPropertyIndex(self, propertyName, newIndex):
-        assert self.hasProperty(propertyName)
-        currentIndex = list(self._properties.keys()).index(propertyName)
-        inds = list(range(len(self._properties)))
-        inds.remove(currentIndex)
-        inds.insert(newIndex, currentIndex)
+        assert propertyName in self._properties
+        assert 0 <= newIndex < len(self._properties)
+        value = self._properties.pop(propertyName)
         items = list(self._properties.items())
-        self._properties = OrderedDict([items[i] for i in inds])
+        items.insert(newIndex, (propertyName, value))
+        self._properties = OrderedDict(items)
 
     def setProperty(self, propertyName, propertyValue):
         previousValue = self._properties[propertyName]
