@@ -174,13 +174,11 @@ class PropertySet(object):
     def setProperty(self, propertyName, propertyValue):
         previousValue = self._properties[propertyName]
         propertyValue = fromQColor(propertyName, propertyValue)
-        if propertyValue == previousValue:
-            return
-
         names = self.getPropertyAttribute(propertyName, 'enumNames')
         if names and type(propertyValue) != int:
             propertyValue = names.index(propertyValue)
-
+        if propertyValue == previousValue:
+            return
         self._properties[propertyName] = propertyValue
         self.callbacks.process(self.PROPERTY_CHANGED_SIGNAL, self, propertyName)
 
