@@ -689,11 +689,22 @@ def showImage(image, name, anchor='Top Left', parent=None, view=None):
     return item
 
 
-def createAxesPolyData(scale, useTube, tubeWidth=0.002):
+def createAxesPolyData(scale, useTube=False, tubeWidth=0.002):
+    return shallowCopy(_createAxesPolyData(scale, useTube, tubeWidth))
+
+
+@functools.lru_cache()
+def _createAxesPolyData(scale, useTube=False, tubeWidth=0.002):
     axes = vtk.vtkAxes()
     axes.SetComputeNormals(0)
     axes.SetScaleFactor(scale)
     axes.Update()
+
+    colors = np.array(
+        [[255, 0, 0], [255, 0, 0],
+        [0, 255, 0], [0, 255, 0],
+        [0, 0, 255], [0, 0, 255]], dtype=np.uint8)
+    vnp.addNumpyToVtk(axes.GetOutput(), colors, 'RGB255')
 
     if useTube:
         tube = vtk.vtkTubeFilter()
@@ -703,44 +714,37 @@ def createAxesPolyData(scale, useTube, tubeWidth=0.002):
         tube.Update()
         axes = tube
 
-    return shallowCopy(axes.GetOutput())
+    return axes.GetOutput()
 
 
 class FrameItem(PolyDataItem):
 
-    def __init__(self, name, transform, view):
-
-        PolyDataItem.__init__(self, name, vtk.vtkPolyData(), view)
+    def __init__(self, name, transform, view, scale=1.0):
+        polyData = createAxesPolyData(scale)
+        PolyDataItem.__init__(self, name, polyData, view)
+        self.actor.SetUserTransform(transform)
 
         self.transform = transform
         self._blockSignals = False
-
-        self.actor.SetUserTransform(transform)
-
-        self.widget = vtk.vtkFrameWidget()
-        self.widget.CreateDefaultRepresentation()
-        self.widget.EnabledOff()
-        self.rep = self.widget.GetRepresentation()
-        self.rep.SetTransform(transform)
+        self.widget = None
+        self.rep = None
         self.traceData = None
         self._frameSync = None
 
-        self.addProperty('Scale', 1.0, attributes=om.PropertyAttributes(decimals=2, minimum=0.01, maximum=100, singleStep=0.1, hidden=False))
+        self.addProperty('Scale', float(scale), attributes=om.PropertyAttributes(decimals=2, minimum=0.01, maximum=100, singleStep=0.1, hidden=False))
         self.addProperty('Edit', False)
         self.addProperty('Trace', False)
         self.addProperty('Tube', False)
         self.addProperty('Tube Width', 0.002, attributes=om.PropertyAttributes(decimals=3, minimum=0.001, maximum=10, singleStep=0.01, hidden=True))
 
         self.properties.setPropertyIndex('Edit', 0)
-        self.properties.setPropertyIndex('Trace', 1)
-        self.properties.setPropertyIndex('Tube', 2)
+        self.properties.setPropertyIndex('Scale', 1)
 
         self.callbacks.addSignal('FrameModified')
         self.onTransformModifiedCallback = None
         self.observerTag = self.transform.AddObserver('ModifiedEvent', self.onTransformModified)
 
-        self._updateAxesGeometry()
-        self.setProperty('Color By', 'Axes')
+        self.setProperty('Color By', 'RGB255')
         self.setProperty('Icon', om.Icons.Axes)
 
 
@@ -763,7 +767,7 @@ class FrameItem(PolyDataItem):
         return dataSet == self.transform
 
     def hasActor(self, actor):
-        return actor == self.widget.GetRepresentation() or PolyDataItem.hasActor(self, actor)
+        return PolyDataItem.hasActor(self, actor) or self.rep and actor == self.rep
 
     def copyFrame(self, transform):
         self._blockSignals = True
@@ -780,9 +784,18 @@ class FrameItem(PolyDataItem):
             self._frameSync.addFrame(self)
         return self._frameSync
 
+    def _initWidget(self):
+        self.widget = vtk.vtkFrameWidget()
+        self.widget.CreateDefaultRepresentation()
+        self.widget.EnabledOff()
+        self.rep = self.widget.GetRepresentation()
+        self.rep.SetTransform(self.transform)
+        self.rep.SetWorldSize(self.getProperty('Scale'))
+
     def _updateAxesGeometry(self):
         scale = self.getProperty('Scale')
-        self.rep.SetWorldSize(scale)
+        if self.rep:
+            self.rep.SetWorldSize(scale)
         self.setPolyData(createAxesPolyData(scale, self.getProperty('Tube'), self.getProperty('Tube Width')))
 
     def _onPropertyChanged(self, propertySet, propertyName):
@@ -790,7 +803,6 @@ class FrameItem(PolyDataItem):
 
         if propertyName == 'Scale':
             scale = self.getProperty(propertyName)
-            self.rep.SetWorldSize(scale)
             self._updateAxesGeometry()
         elif propertyName == 'Tube Width':
             self._updateAxesGeometry()
@@ -798,12 +810,16 @@ class FrameItem(PolyDataItem):
             view = app.getCurrentRenderView()
             if view not in self.views:
                 view = self.views[0]
-            self.widget.SetInteractor(view.renderWindow().GetInteractor())
-
-            self.widget.SetEnabled(self.getProperty(propertyName))
             isEditing = self.getProperty(propertyName)
             if isEditing:
+                if not self.widget:
+                    self._initWidget()
+                self.widget.SetInteractor(view.renderWindow().GetInteractor())
+                self.widget.SetEnabled(True)
                 frameupdater.registerFrame(self)
+            elif self.widget:
+                self.widget.SetEnabled(False)
+
         elif propertyName == 'Trace':
             trace = self.getProperty(propertyName)
             if trace and not self.traceData:
@@ -820,8 +836,9 @@ class FrameItem(PolyDataItem):
 
         self.transform.RemoveObserver(self.observerTag)
 
-        self.widget.SetInteractor(None)
-        self.widget.EnabledOff()
+        if self.widget:
+            self.widget.SetInteractor(None)
+            self.widget.EnabledOff()
         for view in self.views:
             view.renderer().RemoveActor(self.actor)
             view.render()
@@ -1314,11 +1331,10 @@ def showFrame(frame, name, view=None, parent='data', scale=0.35, visible=True, a
     view = view or app.getCurrentRenderView()
     assert view
 
-    item = FrameItem(name, frame, view)
+    item = FrameItem(name, frame, view, scale)
     om.addToObjectModel(item, getParentObj(parent))
     item.setProperty('Visible', visible)
     item.setProperty('Alpha', alpha)
-    item.setProperty('Scale', scale)
     return item
 
 
