@@ -118,8 +118,13 @@ class PropertySet(object):
 
     def connectPropertyValueChanged(self, propertyName, func):
 
-        def onPropertyChanged(propertySet, propertyName):
-            func(propertySet.getProperty(propertyName))
+        def onPropertyChanged(propertySet, changedPropertyName):
+            if changedPropertyName == propertyName:
+                if self.getPropertyAttributes(propertyName).enumNames:
+                    value = propertySet.getPropertyEnumValue(propertyName)
+                else:
+                    value = propertySet.getProperty(propertyName)
+                func(value)
 
         self.connectPropertyChanged(onPropertyChanged)
 
