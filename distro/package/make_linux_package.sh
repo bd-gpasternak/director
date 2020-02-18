@@ -45,5 +45,6 @@ cp -r $superbuildInstallDir $packageName
 echo 'running fixup_elf script'
 
 python3 fixup_elf.py $packageName $superbuildInstallDir $patchelfExe
+$scriptDir/make_wheel_package.sh $packageName
 tar -czf $packageName.tar.gz $packageName
 rm -r $packageName
