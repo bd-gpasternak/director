@@ -81,6 +81,11 @@ QVariant QtVariantProperty::value();
 void QtVariantProperty::setValue(const QVariant &);
 void QtVariantProperty::setAttribute(const QString &, const QVariant &);
 bool QtVariantProperty::isSubProperty() const;
+void QtVariantProperty::setToolTip(const QString &);
+void QtVariantProperty::setStatusTip(const QString &);
+void QtVariantProperty::setWhatsThis(const QString &);
+void QtVariantProperty::setEnabled(bool);
+
 
 ddPropertiesPanel::ddPropertiesPanel();
 ddPropertiesPanel::~ddPropertiesPanel();

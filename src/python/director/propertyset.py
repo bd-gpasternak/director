@@ -308,7 +308,8 @@ class PropertyPanelHelper(object):
 
     @staticmethod
     def _setPropertyAttributes(prop, attributes):
-
+        prop.setToolTip(attributes.docstring)
+        prop.setEnabled(not attributes.readOnly)
         prop.setAttribute('decimals', attributes.decimals)
         prop.setAttribute('minimum', attributes.minimum)
         prop.setAttribute('maximum', attributes.maximum)
