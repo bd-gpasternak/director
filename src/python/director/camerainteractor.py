@@ -2,6 +2,7 @@ from director import vieweventfilter
 from director import visualization as vis
 from director import vtkAll as vtk
 from director.debugVis import DebugData
+from director.timercallback import TimerCallback
 from PythonQt import QtCore
 
 import numpy as np
@@ -21,10 +22,11 @@ class CameraInteractor(vieweventfilter.ViewEventFilter):
         self.renderWindowobserver = view.renderWindow().AddObserver('StartEvent', self.onStartRender)
         self.renderWindowobserver = view.renderWindow().AddObserver('EndEvent', self.onEndRender)
         self.style = vtk.vtkPickCenteredInteractorStyle()
-        self.style.SetMotionFactor(3)
         self.showOnMove = False
         self.showCenter = False
         self.lastHitPoint = None
+        self.mouseWheelTimer = TimerCallback(callback=self.onMouseWheelTimer)
+        self.mouseWheelTimeout = 0.25
         self._enabled = False
         self.setEnabled(True)
 
@@ -58,7 +60,19 @@ class CameraInteractor(vieweventfilter.ViewEventFilter):
     def onMiddleMousePress(self, event):
         self.updateMouseHitPoint(event)
 
+    def onMouseWheel(self, event):
+        if not self.mouseWheelTimer.singleShotTimer.isActive():
+            self.updateMouseHitPoint(event)
+        self.mouseWheelTimer.singleShot(self.mouseWheelTimeout)
+        self.maybeShowCameraCenter()
+
+    def onMouseWheelTimer(self):
+        self.hideCameraCenter()
+
     def onMouseMove(self, event):
+        self.maybeShowCameraCenter()
+
+    def maybeShowCameraCenter(self):
         if self.showCenter and self.showOnMove:
             self.cameraCenterObj.setProperty('Visible', True)
         self.showOnMove = False

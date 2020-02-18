@@ -49,6 +49,7 @@
 #include "vtkInteractorStyle.h"
 
 #include <vtkDRCFiltersModule.h>
+#include <map>
 
 class vtkPolyDataMapper;
 class vtkSphereSource;
@@ -77,7 +78,6 @@ public:
   virtual void OnMouseWheelForward() VTKDRCFILTERS_OVERRIDE;
   virtual void OnMouseWheelBackward() VTKDRCFILTERS_OVERRIDE;
 
-
   // Description:
   // Override the "fly-to" (f keypress) for images.
   virtual void OnChar() VTKDRCFILTERS_OVERRIDE;
@@ -88,33 +88,31 @@ public:
   virtual void Pan() VTKDRCFILTERS_OVERRIDE;
   virtual void Dolly() VTKDRCFILTERS_OVERRIDE;
 
-  virtual void Dolly(double zoomFactor);
+  // Dolly by the given value.  See vtkCamera::Dolly().
+  void Dolly(double value);
 
-  // Description:
-  // Turn on/off the latitude/longitude lines.
-  vtkSetMacro(LatLongLines,int);
-  vtkGetMacro(LatLongLines,int);
-  vtkBooleanMacro(LatLongLines,int);
+  void SetMouseInteraction(int button, int interactionMode);
+  void SetMouseShiftInteraction(int button, int interactionMode);
 
-  vtkSetMacro(MotionFactor,double);
-  vtkGetMacro(MotionFactor,double);
+  vtkSetMacro(ZoomFactor, double);
+  vtkGetMacro(ZoomFactor, double);
+
+  vtkSetMacro(RotationFactor, double);
+  vtkGetMacro(RotationFactor, double);
 
 protected:
   vtkInteractorStyleTerrain2();
   virtual ~vtkInteractorStyleTerrain2() VTKDRCFILTERS_OVERRIDE;
 
-  // Internal helper attributes
-  int LatLongLines;
+  void OnMouseButtonDown(int button);
+  void OnMouseButtonUp(int button);
+  bool ValidateButtonInteraction(int button, int interactionMode);
 
-  vtkSphereSource *LatLongSphere;
-  vtkPolyDataMapper *LatLongMapper;
-  vtkActor *LatLongActor;
-  vtkExtractEdges *LatLongExtractEdges;
+  double ZoomFactor;
+  double RotationFactor;
 
-  void SelectRepresentation();
-  void CreateLatLong();
-
-  double MotionFactor;
+  std::map<int, int> MouseInteractionMap;
+  std::map<int, int> MouseShiftInteractionMap;
 
 private:
   vtkInteractorStyleTerrain2(const vtkInteractorStyleTerrain2&)

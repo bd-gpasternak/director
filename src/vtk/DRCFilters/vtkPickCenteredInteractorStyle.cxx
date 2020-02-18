@@ -119,10 +119,18 @@ vtkVector3d operator*(const vtkVector3d &lhs, const double rhs)
 //----------------------------------------------------------------------------
 vtkPickCenteredInteractorStyle::vtkPickCenteredInteractorStyle()
 {
-  this->MotionFactor = 3.0;
+  this->RotationFactor = 10.0;
+  this->ZoomFactor = 10.0;
   this->CustomCenterOfRotation[0] = 0.0;
   this->CustomCenterOfRotation[1] = 0.0;
   this->CustomCenterOfRotation[2] = 0.0;
+
+  this->SetMouseInteraction(vtkCommand::LeftButtonPressEvent, VTKIS_ROTATE);
+  this->SetMouseInteraction(vtkCommand::MiddleButtonPressEvent, VTKIS_PAN);
+  this->SetMouseInteraction(vtkCommand::RightButtonPressEvent, VTKIS_DOLLY);
+  this->SetMouseShiftInteraction(vtkCommand::LeftButtonPressEvent, VTKIS_PAN);
+  this->SetMouseShiftInteraction(vtkCommand::MiddleButtonPressEvent, VTKIS_PAN);
+  this->SetMouseShiftInteraction(vtkCommand::RightButtonPressEvent, VTKIS_DOLLY);
 }
 
 //----------------------------------------------------------------------------
@@ -176,12 +184,129 @@ double vtkPickCenteredInteractorStyle::ComputeScale(const double position[3], vt
 }
 
 //----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnMouseMove() 
-{ 
+void vtkPickCenteredInteractorStyle::SetMouseInteraction(int button, int interactionMode)
+{
+  if (this->ValidateButtonInteraction(button, interactionMode))
+    {
+    this->MouseInteractionMap[button] = interactionMode;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::SetMouseShiftInteraction(int button, int interactionMode)
+{
+  if (this->ValidateButtonInteraction(button, interactionMode))
+    {
+    this->MouseShiftInteractionMap[button] = interactionMode;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+bool vtkPickCenteredInteractorStyle::ValidateButtonInteraction(int button, int interactionMode)
+{
+  if (button != vtkCommand::LeftButtonPressEvent
+      && button != vtkCommand::MiddleButtonPressEvent
+      && button != vtkCommand::RightButtonPressEvent)
+    {
+    vtkErrorMacro("Unknown button:" << button);
+    return false;
+    }
+  if (interactionMode != VTKIS_PAN
+      && interactionMode != VTKIS_ROTATE
+      && interactionMode != VTKIS_DOLLY)
+  {
+    vtkErrorMacro("Unknown interaction mode:" << interactionMode);
+    return false;
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnLeftButtonDown()
+{
+  this->OnMouseButtonDown(vtkCommand::LeftButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnLeftButtonUp()
+{
+  this->OnMouseButtonUp(vtkCommand::LeftButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMiddleButtonDown()
+{
+  this->OnMouseButtonDown(vtkCommand::MiddleButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMiddleButtonUp()
+{
+  this->OnMouseButtonUp(vtkCommand::MiddleButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnRightButtonDown()
+{
+  this->OnMouseButtonDown(vtkCommand::RightButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnRightButtonUp()
+{
+  this->OnMouseButtonUp(vtkCommand::RightButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMouseButtonDown(int button)
+{
+  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
+                          this->Interactor->GetEventPosition()[1]);
+  if (this->CurrentRenderer == NULL)
+    {
+    return;
+    }
+
+  this->GrabFocus(this->EventCallbackCommand);
+  if (this->State != VTKIS_NONE)
+    {
+    return;
+    }
+
+  vtkRenderWindowInteractor *rwi = this->Interactor;
+
+  if (rwi->GetShiftKey())
+    {
+    this->StartState(this->MouseShiftInteractionMap[button]);
+    }
+  else
+    {
+    this->StartState(this->MouseInteractionMap[button]);
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMouseButtonUp(int button)
+{
+  if (this->State == this->MouseInteractionMap[button]
+      || this->State == this->MouseShiftInteractionMap[button]) {
+      this->StopState();
+      if ( this->Interactor )
+        {
+        this->ReleaseFocus();
+        }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMouseMove()
+{
   int x = this->Interactor->GetEventPosition()[0];
   int y = this->Interactor->GetEventPosition()[1];
 
-  switch (this->State) 
+  switch (this->State)
     {
     case VTKIS_ROTATE:
       this->FindPokedRenderer(x, y);
@@ -204,110 +329,6 @@ void vtkPickCenteredInteractorStyle::OnMouseMove()
 }
 
 //----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnLeftButtonDown () 
-{ 
-  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
-                          this->Interactor->GetEventPosition()[1]);
-  if (this->CurrentRenderer == NULL)
-    {
-    return;
-    }
-
-  this->GrabFocus(this->EventCallbackCommand);
-
-  vtkRenderWindowInteractor *rwi = this->Interactor;
-
-  if (rwi->GetShiftKey())
-  {
-    this->StartPan();
-  }
-  else
-  {
-    this->StartRotate();
-  }
-}
-
-//----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnLeftButtonUp ()
-{
-  switch (this->State) 
-    {
-    case VTKIS_ROTATE:
-      this->EndRotate();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
-    case VTKIS_PAN:
-      this->EndPan();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnMiddleButtonDown () 
-{
-  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
-                          this->Interactor->GetEventPosition()[1]);
-  if (this->CurrentRenderer == NULL)
-    {
-    return;
-    }
-  
-  this->GrabFocus(this->EventCallbackCommand);
-  this->StartPan();
-}
-
-//----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnMiddleButtonUp ()
-{
-  switch (this->State) 
-    {
-    case VTKIS_PAN:
-      this->EndPan();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnRightButtonDown () 
-{
-  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
-                          this->Interactor->GetEventPosition()[1]);
-  if (this->CurrentRenderer == NULL)
-    {
-    return;
-    }
-  
-  this->GrabFocus(this->EventCallbackCommand);
-  this->StartDolly();
-}
-
-//----------------------------------------------------------------------------
-void vtkPickCenteredInteractorStyle::OnRightButtonUp ()
-{
-  switch (this->State) 
-    {
-    case VTKIS_DOLLY:
-      this->EndDolly();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
-    }
-}
-
-//----------------------------------------------------------------------------
 void vtkPickCenteredInteractorStyle::Rotate()
 {
   if (this->CurrentRenderer == NULL)
@@ -315,16 +336,13 @@ void vtkPickCenteredInteractorStyle::Rotate()
     return;
     }
 
-
   vtkRenderWindowInteractor *rwi = this->Interactor;
 
   int dx = - ( rwi->GetEventPosition()[0] - rwi->GetLastEventPosition()[0] );
   int dy = - ( rwi->GetEventPosition()[1] - rwi->GetLastEventPosition()[1] );
-
   int *size = this->CurrentRenderer->GetRenderWindow()->GetSize();
-
-  double a = dx / static_cast<double>( size[0]) * 180.0;
-  double e = dy / static_cast<double>( size[1]) * 180.0;
+  double a = this->RotationFactor * 18.0 * dx / static_cast<double>(size[0]);
+  double e = this->RotationFactor * 18.0 * dy / static_cast<double>(size[1]);
   
   if (rwi->GetControlKey()) 
     {
@@ -448,20 +466,25 @@ void vtkPickCenteredInteractorStyle::Dolly()
     }
 
   vtkRenderWindowInteractor *rwi = this->Interactor;
-  vtkCamera *camera = this->CurrentRenderer->GetActiveCamera();
 
   int dy = rwi->GetEventPosition()[1] - rwi->GetLastEventPosition()[1];
   double h = rwi->GetRenderWindow()->GetSize()[1];
-  double dyf = 2.0 * dy / h;
+  double dyf = this->ZoomFactor * 2.0 * dy / h;
+  this->Dolly(pow(1.1, dyf));
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::Dolly(double value)
+{
+  vtkRenderWindowInteractor *rwi = this->Interactor;
+  vtkCamera *camera = this->CurrentRenderer->GetActiveCamera();
 
   if (camera->GetParallelProjection())
     {
-      camera->SetParallelScale(camera->GetParallelScale() / (dyf*this->MotionFactor));
+      camera->SetParallelScale(camera->GetParallelScale() / value);
     }
   else
     {
-
-
     double from[3];
     camera->GetPosition(from);
 
@@ -474,7 +497,7 @@ void vtkPickCenteredInteractorStyle::Dolly()
     double offset[3];
     for(int i=0; i<3; i++)
       {
-      offset[i] = movec[i] * dyf * this->MotionFactor;
+      offset[i] = movec[i] * (value - 1);
       }
 
     MoveCamera(camera, offset);
@@ -491,12 +514,11 @@ void vtkPickCenteredInteractorStyle::Dolly()
     double pcoord =  vtkVector3d(pt - linePoint1).Dot(lineVector) / lineVector.Dot(lineVector);
     vtkVector3d projectedFocalPoint = linePoint1 + (lineVector * pcoord);
     camera->SetFocalPoint(projectedFocalPoint.GetData());
-    }
 
-
-  if (this->AutoAdjustCameraClippingRange)
-    {
-    this->CurrentRenderer->ResetCameraClippingRange();
+    if (this->AutoAdjustCameraClippingRange)
+      {
+      this->CurrentRenderer->ResetCameraClippingRange();
+      }
     }
 
   if (rwi->GetLightFollowCamera()) 
@@ -505,6 +527,42 @@ void vtkPickCenteredInteractorStyle::Dolly()
     }
   
   rwi->Render();
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMouseWheelForward()
+{
+  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0],
+                          this->Interactor->GetEventPosition()[1]);
+  if (this->CurrentRenderer == nullptr)
+  {
+    return;
+  }
+
+  this->GrabFocus(this->EventCallbackCommand);
+  this->StartDolly();
+  double factor = this->ZoomFactor * 0.2 * this->MouseWheelMotionFactor;
+  this->Dolly(pow(1.1, factor));
+  this->EndDolly();
+  this->ReleaseFocus();
+}
+
+//----------------------------------------------------------------------------
+void vtkPickCenteredInteractorStyle::OnMouseWheelBackward()
+{
+  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0],
+                          this->Interactor->GetEventPosition()[1]);
+  if (this->CurrentRenderer == nullptr)
+  {
+    return;
+  }
+
+  this->GrabFocus(this->EventCallbackCommand);
+  this->StartDolly();
+  double factor = this->ZoomFactor * -0.2 * this->MouseWheelMotionFactor;
+  this->Dolly(pow(1.1, factor));
+  this->EndDolly();
+  this->ReleaseFocus();
 }
 
 //----------------------------------------------------------------------------
@@ -524,5 +582,6 @@ void vtkPickCenteredInteractorStyle::OnChar()
 void vtkPickCenteredInteractorStyle::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
-  os << indent << "Motion Factor: " << (this->MotionFactor);
+  os << indent << "Rotation Factor: " << this->RotationFactor << "\n";
+  os << indent << "Zoom Factor: " << this->ZoomFactor << "\n";
 }

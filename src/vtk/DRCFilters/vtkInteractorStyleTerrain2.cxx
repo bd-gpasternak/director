@@ -17,53 +17,31 @@
 #include "vtkActor.h"
 #include "vtkCamera.h"
 #include "vtkCallbackCommand.h"
-#include "vtkExtractEdges.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
-#include "vtkPolyData.h"
-#include "vtkPolyDataMapper.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
-#include "vtkSphereSource.h"
 
 vtkStandardNewMacro(vtkInteractorStyleTerrain2);
 
 //----------------------------------------------------------------------------
 vtkInteractorStyleTerrain2::vtkInteractorStyleTerrain2()
 {
-  this->LatLongLines = 0;
+  this->RotationFactor = 10.0;
+  this->ZoomFactor = 10.0;
 
-  this->LatLongSphere = NULL;
-  this->LatLongExtractEdges = NULL;
-  this->LatLongMapper = NULL;
-  this->LatLongActor = NULL;
-
-  this->MotionFactor   = 10.0;
+  this->SetMouseInteraction(vtkCommand::LeftButtonPressEvent, VTKIS_ROTATE);
+  this->SetMouseInteraction(vtkCommand::MiddleButtonPressEvent, VTKIS_PAN);
+  this->SetMouseInteraction(vtkCommand::RightButtonPressEvent, VTKIS_DOLLY);
+  this->SetMouseShiftInteraction(vtkCommand::LeftButtonPressEvent, VTKIS_PAN);
+  this->SetMouseShiftInteraction(vtkCommand::MiddleButtonPressEvent, VTKIS_PAN);
+  this->SetMouseShiftInteraction(vtkCommand::RightButtonPressEvent, VTKIS_DOLLY);
 }
 
 //----------------------------------------------------------------------------
 vtkInteractorStyleTerrain2::~vtkInteractorStyleTerrain2()
 {
-  if (this->LatLongSphere != NULL) 
-    {
-    this->LatLongSphere->Delete();
-    }
-
-  if (this->LatLongMapper != NULL) 
-    {
-    this->LatLongMapper->Delete();
-    }
-
-  if (this->LatLongActor != NULL) 
-    {
-    this->LatLongActor->Delete();
-    }
-
-  if (this->LatLongExtractEdges != NULL) 
-    {
-    this->LatLongExtractEdges->Delete();
-    }
 }
 
 //----------------------------------------------------------------------------
@@ -95,8 +73,84 @@ void vtkInteractorStyleTerrain2::OnMouseMove()
 }
 
 //----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::OnLeftButtonDown () 
-{ 
+void vtkInteractorStyleTerrain2::SetMouseInteraction(int button, int interactionMode)
+{
+  if (this->ValidateButtonInteraction(button, interactionMode))
+    {
+    this->MouseInteractionMap[button] = interactionMode;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::SetMouseShiftInteraction(int button, int interactionMode)
+{
+  if (this->ValidateButtonInteraction(button, interactionMode))
+    {
+    this->MouseShiftInteractionMap[button] = interactionMode;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+bool vtkInteractorStyleTerrain2::ValidateButtonInteraction(int button, int interactionMode)
+{
+  if (button != vtkCommand::LeftButtonPressEvent
+      && button != vtkCommand::MiddleButtonPressEvent
+      && button != vtkCommand::RightButtonPressEvent)
+    {
+    vtkErrorMacro("Unknown button:" << button);
+    return false;
+    }
+  if (interactionMode != VTKIS_PAN
+      && interactionMode != VTKIS_ROTATE
+      && interactionMode != VTKIS_DOLLY)
+    {
+    vtkErrorMacro("Unknown interaction mode:" << interactionMode);
+    return false;
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnLeftButtonDown()
+{
+  this->OnMouseButtonDown(vtkCommand::LeftButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnLeftButtonUp()
+{
+  this->OnMouseButtonUp(vtkCommand::LeftButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnMiddleButtonDown()
+{
+  this->OnMouseButtonDown(vtkCommand::MiddleButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnMiddleButtonUp()
+{
+  this->OnMouseButtonUp(vtkCommand::MiddleButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnRightButtonDown()
+{
+  this->OnMouseButtonDown(vtkCommand::RightButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnRightButtonUp()
+{
+  this->OnMouseButtonUp(vtkCommand::RightButtonPressEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkInteractorStyleTerrain2::OnMouseButtonDown(int button)
+{
   this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
                           this->Interactor->GetEventPosition()[1]);
   if (this->CurrentRenderer == NULL)
@@ -105,96 +159,33 @@ void vtkInteractorStyleTerrain2::OnLeftButtonDown ()
     }
 
   this->GrabFocus(this->EventCallbackCommand);
+  if (this->State != VTKIS_NONE)
+    {
+    return;
+    }
 
   vtkRenderWindowInteractor *rwi = this->Interactor;
 
   if (rwi->GetShiftKey())
-  {
-    this->StartPan();
-  }
+    {
+    this->StartState(this->MouseShiftInteractionMap[button]);
+    }
   else
-  {
-    this->StartRotate();
-  }
-}
-
-//----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::OnLeftButtonUp ()
-{
-  switch (this->State) 
     {
-    case VTKIS_ROTATE:
-      this->EndRotate();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
-    case VTKIS_PAN:
-      this->EndPan();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
+    this->StartState(this->MouseInteractionMap[button]);
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::OnMiddleButtonDown () 
+void vtkInteractorStyleTerrain2::OnMouseButtonUp(int button)
 {
-  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
-                          this->Interactor->GetEventPosition()[1]);
-  if (this->CurrentRenderer == NULL)
-    {
-    return;
-    }
-  
-  this->GrabFocus(this->EventCallbackCommand);
-  this->StartPan();
-}
-
-//----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::OnMiddleButtonUp ()
-{
-  switch (this->State) 
-    {
-    case VTKIS_PAN:
-      this->EndPan();
+  if (this->State == this->MouseInteractionMap[button]
+      || this->State == this->MouseShiftInteractionMap[button]) {
+      this->StopState();
       if ( this->Interactor )
         {
         this->ReleaseFocus();
         }
-      break;
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::OnRightButtonDown () 
-{
-  this->FindPokedRenderer(this->Interactor->GetEventPosition()[0], 
-                          this->Interactor->GetEventPosition()[1]);
-  if (this->CurrentRenderer == NULL)
-    {
-    return;
-    }
-  
-  this->GrabFocus(this->EventCallbackCommand);
-  this->StartDolly();
-}
-
-//----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::OnRightButtonUp ()
-{
-  switch (this->State) 
-    {
-    case VTKIS_DOLLY:
-      this->EndDolly();
-      if ( this->Interactor )
-        {
-        this->ReleaseFocus();
-        }
-      break;
     }
 }
 
@@ -204,13 +195,13 @@ void vtkInteractorStyleTerrain2::OnMouseWheelForward()
   this->FindPokedRenderer(this->Interactor->GetEventPosition()[0],
                           this->Interactor->GetEventPosition()[1]);
   if (this->CurrentRenderer == nullptr)
-  {
+    {
     return;
-  }
+    }
 
   this->GrabFocus(this->EventCallbackCommand);
   this->StartDolly();
-  double factor = this->MotionFactor * 0.2 * this->MouseWheelMotionFactor;
+  double factor = this->ZoomFactor * 0.2 * this->MouseWheelMotionFactor;
   this->Dolly(pow(1.1, factor));
   this->EndDolly();
   this->ReleaseFocus();
@@ -222,13 +213,13 @@ void vtkInteractorStyleTerrain2::OnMouseWheelBackward()
   this->FindPokedRenderer(this->Interactor->GetEventPosition()[0],
                           this->Interactor->GetEventPosition()[1]);
   if (this->CurrentRenderer == nullptr)
-  {
+    {
     return;
-  }
+    }
 
   this->GrabFocus(this->EventCallbackCommand);
   this->StartDolly();
-  double factor = this->MotionFactor * -0.2 * this->MouseWheelMotionFactor;
+  double factor = this->ZoomFactor * -0.2 * this->MouseWheelMotionFactor;
   this->Dolly(pow(1.1, factor));
   this->EndDolly();
   this->ReleaseFocus();
@@ -246,12 +237,10 @@ void vtkInteractorStyleTerrain2::Rotate()
 
   int dx = - ( rwi->GetEventPosition()[0] - rwi->GetLastEventPosition()[0] );
   int dy = - ( rwi->GetEventPosition()[1] - rwi->GetLastEventPosition()[1] );
-
   int *size = this->CurrentRenderer->GetRenderWindow()->GetSize();
+  double a = this->RotationFactor * 18.0 * dx / static_cast<double>(size[0]);
+  double e = this->RotationFactor * 18.0 * dy / static_cast<double>(size[1]);
 
-  double a = dx / static_cast<double>( size[0]) * 180.0;
-  double e = dy / static_cast<double>( size[1]) * 180.0;
-  
   if (rwi->GetControlKey()) 
     {
     if(abs( dx ) >= abs( dy ))
@@ -374,12 +363,12 @@ void vtkInteractorStyleTerrain2::Dolly()
   double *center = this->CurrentRenderer->GetCenter();
 
   int dy = rwi->GetEventPosition()[1] - rwi->GetLastEventPosition()[1];
-  double dyf = this->MotionFactor * dy / center[1];
+  double dyf = this->ZoomFactor * dy / center[1];
   this->Dolly(pow(1.1, dyf));
 }
 
 //----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::Dolly(double zoomFactor)
+void vtkInteractorStyleTerrain2::Dolly(double value)
 {
   if (this->CurrentRenderer == NULL)
     {
@@ -390,11 +379,11 @@ void vtkInteractorStyleTerrain2::Dolly(double zoomFactor)
 
   if (camera->GetParallelProjection())
     {
-    camera->SetParallelScale(camera->GetParallelScale() / zoomFactor);
+    camera->SetParallelScale(camera->GetParallelScale() / value);
     }
   else
     {
-    camera->Dolly( zoomFactor );
+    camera->Dolly(value);
     if (this->AutoAdjustCameraClippingRange)
       {
       this->CurrentRenderer->ResetCameraClippingRange();
@@ -416,31 +405,6 @@ void vtkInteractorStyleTerrain2::OnChar()
 
   switch (rwi->GetKeyCode())
     {
-    case 'l':
-      this->FindPokedRenderer(rwi->GetEventPosition()[0],
-                              rwi->GetEventPosition()[1]);
-      this->CreateLatLong();
-      if (this->LatLongLines) 
-        {
-        this->LatLongLinesOff();
-        }
-      else 
-        {
-        double bounds[6];
-        this->CurrentRenderer->ComputeVisiblePropBounds( bounds );
-        double radius = sqrt((bounds[1]-bounds[0])*(bounds[1]-bounds[0]) +
-                             (bounds[3]-bounds[2])*(bounds[3]-bounds[2]) +
-                             (bounds[5]-bounds[4])*(bounds[5]-bounds[4])) /2.0;
-        this->LatLongSphere->SetRadius( radius );
-        this->LatLongSphere->SetCenter((bounds[0]+bounds[1])/2.0,
-                                       (bounds[2]+bounds[3])/2.0,
-                                       (bounds[4]+bounds[5])/2.0);        
-        this->LatLongLinesOn();
-        }
-      this->SelectRepresentation();
-      rwi->Render();
-      break;
-
     default:
       this->Superclass::OnChar();
       break;
@@ -448,64 +412,9 @@ void vtkInteractorStyleTerrain2::OnChar()
 }
 
 //----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::CreateLatLong()
-{
-  if (this->LatLongSphere == NULL)
-    {
-    this->LatLongSphere = vtkSphereSource::New();
-    this->LatLongSphere->SetPhiResolution( 13 );
-    this->LatLongSphere->SetThetaResolution( 25 );
-    this->LatLongSphere->LatLongTessellationOn();
-    }
-
-  if (this->LatLongExtractEdges == NULL)
-    {
-    this->LatLongExtractEdges = vtkExtractEdges::New();
-    this->LatLongExtractEdges->SetInputData(this->LatLongSphere->GetOutput());
-    }
-
-  if (this->LatLongMapper == NULL)
-    {
-    this->LatLongMapper = vtkPolyDataMapper::New();
-    this->LatLongMapper->SetInputData(this->LatLongExtractEdges->GetOutput());
-    }
-
-  if (this->LatLongActor == NULL)
-    {
-    this->LatLongActor = vtkActor::New();
-    this->LatLongActor->SetMapper(this->LatLongMapper);
-    this->LatLongActor->PickableOff();
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkInteractorStyleTerrain2::SelectRepresentation()
-{
-  if (this->CurrentRenderer == NULL)
-    {
-    return;
-    }
-
-  this->CurrentRenderer->RemoveActor(this->LatLongActor);
-  
-  if (this->LatLongLines)
-    {
-    this->CurrentRenderer->AddActor(this->LatLongActor);
-    this->LatLongActor->VisibilityOn();
-    }
-  else
-    {
-    this->LatLongActor->VisibilityOff();
-    }
-}
-
-//----------------------------------------------------------------------------
 void vtkInteractorStyleTerrain2::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
-  
-  os << indent << "Latitude/Longitude Lines: " 
-     << (this->LatLongLines ? "On\n" : "Off\n");
+  os << indent << "Rotation Factor: " << this->RotationFactor << "\n";
+  os << indent << "Zoom Factor: " << this->ZoomFactor << "\n";
 }
-
-

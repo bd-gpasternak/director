@@ -26,6 +26,7 @@
 #include "vtkInteractorStyle.h"
 
 #include <vtkDRCFiltersModule.h>
+#include <map>
 
 
 class VTKDRCFILTERS_EXPORT vtkPickCenteredInteractorStyle : public vtkInteractorStyle
@@ -47,6 +48,8 @@ public:
   virtual void OnMiddleButtonUp() VTKDRCFILTERS_OVERRIDE;
   virtual void OnRightButtonDown() VTKDRCFILTERS_OVERRIDE;
   virtual void OnRightButtonUp() VTKDRCFILTERS_OVERRIDE;
+  virtual void OnMouseWheelForward() VTKDRCFILTERS_OVERRIDE;
+  virtual void OnMouseWheelBackward() VTKDRCFILTERS_OVERRIDE;
   virtual void OnChar() VTKDRCFILTERS_OVERRIDE;
 
   // These methods for the different interactions in different modes
@@ -55,8 +58,17 @@ public:
   virtual void Pan() VTKDRCFILTERS_OVERRIDE;
   virtual void Dolly() VTKDRCFILTERS_OVERRIDE;
 
-  vtkGetMacro(MotionFactor, double);
-  vtkSetMacro(MotionFactor, double);
+  // Dolly by the given value.  See vtkCamera::Dolly().
+  void Dolly(double value);
+
+  void SetMouseInteraction(int button, int interactionMode);
+  void SetMouseShiftInteraction(int button, int interactionMode);
+
+  vtkGetMacro(RotationFactor, double);
+  vtkSetMacro(RotationFactor, double);
+
+  vtkGetMacro(ZoomFactor, double);
+  vtkSetMacro(ZoomFactor, double);
 
   vtkSetVector3Macro(CustomCenterOfRotation, double);
   vtkGetVector3Macro(CustomCenterOfRotation, double);
@@ -67,8 +79,17 @@ protected:
   vtkPickCenteredInteractorStyle();
   virtual ~vtkPickCenteredInteractorStyle() VTKDRCFILTERS_OVERRIDE;
 
-  double MotionFactor;
+  void OnMouseButtonDown(int button);
+  void OnMouseButtonUp(int button);
+
+  bool ValidateButtonInteraction(int button, int interactionMode);
+
+  double RotationFactor;
+  double ZoomFactor;
   double CustomCenterOfRotation[3];
+
+  std::map<int, int> MouseInteractionMap;
+  std::map<int, int> MouseShiftInteractionMap;
 
 private:
   vtkPickCenteredInteractorStyle(const vtkPickCenteredInteractorStyle&)
