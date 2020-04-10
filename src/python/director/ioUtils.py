@@ -87,6 +87,7 @@ def readImage(filename):
             '.png' : vtk.vtkPNGReader,
             '.jpg' : vtk.vtkJPEGReader,
             '.vti' : vtk.vtkXMLImageDataReader,
+            '.tif' : vtk.vtkTIFFReader,
               }
 
     if ext not in readers:
@@ -161,6 +162,7 @@ def writePolyData(polyData, filename):
             '.vtk' : vtk.vtkPolyDataWriter,
             '.ply' : vtk.vtkPLYWriter,
             '.stl' : vtk.vtkSTLWriter,
+            '.obj' : vtk.vtkOBJWriter,
               }
 
     if ext not in writers:
