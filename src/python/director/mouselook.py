@@ -61,22 +61,22 @@ class MouseLook:
         self.camRPY = np.array([0.0, 0.0, 0.0])
         self.camPos = np.array([-20.0, 0.0, 4.0])
 
-        self.yawScale = -10.0
-        self.pitchScale = 10.0
-        self.velScale = 50.0
+        self.yawScale = -5.0
+        self.pitchScale = 5.0
+        self.velScale = 1.1
         self.lastDelta = np.zeros(2)
         self.lastVel = np.zeros(3)
-        self.alpha = 0.93
+        self.alpha = 0.9
+        self.rotateAlpha = 0.9
 
         self.forceRender = True
         self.requestRender = False
 
         self.warpMouse = True
         self.warpPos = (500, 500)
-        if self.warpMouse:
-            QtGui.QCursor.setPos(*self.warpPos)
         self.mousePos = QtGui.QCursor.pos()
         self.timer = TimerCallback(targetFps=60, callback=self._onTimer)
+        self.get_time_elapsed_function = lambda: self.timer.elapsed
 
     def toggle(self):
         self.setEnabled(not self.enabled)
@@ -111,6 +111,7 @@ class MouseLook:
         vel = alpha*self.lastVel + (1-alpha)*vel
         self.lastVel = vel
 
+        alpha = self.rotateAlpha
         delta = alpha*self.lastDelta + (1-alpha)*delta
         self.lastDelta = delta
 
@@ -155,7 +156,7 @@ class MouseLook:
         if downPress:
             vel[0] -= 1.0
 
-        dt = self.timer.elapsed
+        dt = self.get_time_elapsed_function()
         vel = np.array(vel)
         velNorm = np.linalg.norm(vel)
         if velNorm > 0.0:
