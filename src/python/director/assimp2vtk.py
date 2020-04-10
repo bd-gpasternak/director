@@ -6,6 +6,7 @@ from director import ioUtils
 from director import filterUtils
 from director import transformUtils
 from director import objectmodel as om
+from director import visualization as vis
 from director.shallowCopy import shallowCopy
 from collections import OrderedDict
 import pyassimp
@@ -26,39 +27,38 @@ class AssimpScene(object):
             self.meshToPolyData[meshIndex] = assimpMeshToPolyData(mesh)
         return self.meshToPolyData[meshIndex]
 
-    def getTextureForMaterial(self, material):
-
+    def getTextureFileForMaterial(self, material):
         materialDict = dict(list(material.properties.items()))
-
         if 'file' not in materialDict:
             return None
+        filename = materialDict['file']
+        if not os.path.isabs(filename):
+            filename =  os.path.join(self.baseDir, filename)
+        return filename
 
-        textureFile = materialDict['file']
+    def getTextureForMaterial(self, material):
+        filename = self.getTextureFileForMaterial(material)
+        if not filename:
+            return None
+        if filename in self.textureCache:
+            return self.textureCache[filename]
 
-        if textureFile in self.textureCache:
-            return self.textureCache[textureFile]
-
-        if not os.path.isabs(textureFile):
-            imageFile = os.path.join(self.baseDir, textureFile)
-        else:
-            imageFile = textureFile
-
-        if os.path.isfile(imageFile):
-            image = ioUtils.readImage(imageFile)
-
+        if os.path.isfile(filename):
+            image = ioUtils.readImage(filename)
+            img = vnp.getNumpyImageFromVtk(image)
             if image:
                 texture = vtk.vtkTexture()
-                texture.SetInput(image)
+                texture.SetInputData(image)
                 texture.EdgeClampOn()
                 texture.RepeatOn()
             else:
-                print('failed to load image file:', imageFile)
+                print('failed to load image file:', filename)
                 texture = None
         else:
-            print('cannot find texture file:', textureFile)
+            print('cannot find texture file:', filename)
             texture = None
 
-        self.textureCache[textureFile] = texture
+        self.textureCache[filename] = texture
         return texture
 
     def addToView(self, view):
@@ -77,22 +77,57 @@ class AssimpScene(object):
                 obj.actor.SetUserTransform(t)
                 self.setMaterialProperties(obj, mesh)
 
+
+    def getMaterialsDict(self):
+        return {material.properties['name']: self.getMaterialProperties(material) for material in self.scene.materials}
+
+
+    def getSceneJson(self):
+        root_name = self.scene.rootnode.name
+        root_transform = np.array(self.scene.rootnode.transformation).tolist()
+        children = []
+        scene = dict(name=root_name, transform=root_transform, children=children, materials=self.getMaterialsDict())
+        for node in self.scene.rootnode.children:
+            name = node.name
+            transform = np.array(node.transformation).tolist()
+            meshes = []
+            children.append(dict(name=name, transform=transform, meshes=meshes))
+            for i, mesh in enumerate(node.meshes):
+                pd = self.getPolyDataForMesh(mesh)
+                textureFile = self.getTextureFileForMaterial(mesh.material) or ''
+                material = mesh.material.properties['name']
+                meshes.append(dict(texture=textureFile, geometry=pd, material=material))
+        return scene
+
+
+    def getMaterialProperties(self, material):
+        props = {k: v for k, v in material.properties.items()}
+        result = dict(name=props['name'],
+                    opacity=props['opacity'],
+                    diffuseColor=props['diffuse'][:3],
+                    ambientColor=props['ambient'][:3],
+                    specularColor=props['specular'][:3] if props['shininess'] else [1.0, 1.0, 1.0],
+                    specularPower=props['shininess'] or 1.0,
+                    specular=0.5 if props['shininess'] else 0.0,
+                    ambient=0.0,
+                    diffuse=1.0)
+        if 'file' in props:
+            result['texture'] = props['file']
+        return result
+
+
     def setMaterialProperties(self, obj, mesh):
-        material = mesh.material
-        props = {k[0]:v for k, v in material.properties.items()}
-
+        props = self.getMaterialProperties(mesh.material)
         obj.setProperty('Alpha', props['opacity'])
-        obj.setProperty('Color', props['diffuse'])
-
+        obj.setProperty('Color', props['diffuseColor'])
         vtkprop = obj.actor.GetProperty()
-        vtkprop.SetAmbientColor(props['ambient'])
-        vtkprop.SetSpecularColor(props['specular'])
-
-        #phongSize = props['shininess']
-        #phong = 1.0
-
-        #vtkprop.SetSpecular(phong)
-        #vtkprop.SetSpecularPower(phongSize*0.7)
+        vtkprop.SetDiffuseColor(props['diffuseColor'])
+        vtkprop.SetAmbientColor(props['ambientColor'])
+        vtkprop.SetSpecularColor(props['specularColor'])
+        vtkprop.SetDiffuse(props['diffuse'])
+        vtkprop.SetAmbient(props['ambient'])
+        vtkprop.SetSpecular(props['specular'])
+        vtkprop.SetSpecularPower(props['specularPower'])
 
 
 def addMaterialMetaData(polyData, material):
@@ -205,7 +240,7 @@ def writeMultiBlockPolyData(polyDataList, outFile):
 
     writer = vtk.vtkXMLMultiBlockDataWriter()
     writer.SetFileName(outFile)
-    writer.SetInput(mb)
+    writer.SetInputData(mb)
     writer.Write()
 
 
