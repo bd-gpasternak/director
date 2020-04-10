@@ -227,6 +227,7 @@ class vtkFrameWidgetRepresentation::vtkInternal {
 public:
   vtkInternal()
     {
+    this->DisableRebuild = false;
     this->BoundingBox = vtkSmartPointer<vtkBox>::New();
 
     this->Transform = vtkSmartPointer<vtkTransform>::New();
@@ -262,6 +263,11 @@ public:
 
   void RebuildActors(double scale, bool useTubeFilter)
   {
+    if (this->DisableRebuild)
+      {
+      return;
+      }
+
     this->Reps.clear();
     this->Axes.clear();
     this->Actors.clear();
@@ -330,8 +336,8 @@ public:
 
   std::vector<DataRep> Reps;
   std::vector<DataRep> Axes;
-
   std::vector<vtkActor*> Actors;
+  bool DisableRebuild;
 };
 
 //----------------------------------------------------------------------------
@@ -364,10 +370,10 @@ void vtkFrameWidgetRepresentation::SetRotationActor(int axisId, vtkActor* actor)
   this->Internal->Reps[axisId].Actor = actor;
   this->Internal->Reps[axisId].Mapper = vtkPolyDataMapper::SafeDownCast(actor->GetMapper());
   this->Internal->Reps[axisId].PolyData = vtkPolyData::SafeDownCast(actor->GetMapper()->GetInput());
-
   this->Internal->Actors[axisId] = actor;
   actor->SetUserTransform(this->Internal->Transform);
   this->Internal->InitPicker();
+  this->Internal->DisableRebuild = true;
 }
 
 //----------------------------------------------------------------------
