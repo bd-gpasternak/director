@@ -18,10 +18,14 @@
 #include "vtkCamera.h"
 #include "vtkCallbackCommand.h"
 #include "vtkMath.h"
+#include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkRenderWindow.h"
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
+#include "vtkTransform.h"
+#include "vtkVectorOperators.h"
+
 
 vtkStandardNewMacro(vtkInteractorStyleTerrain2);
 
@@ -253,31 +257,77 @@ void vtkInteractorStyleTerrain2::Rotate()
       }
     }
 
-  // Move the camera. 
-  // Make sure that we don't hit the north pole singularity.
-
   vtkCamera *camera = this->CurrentRenderer->GetActiveCamera();
-  camera->Azimuth( a );
+  vtkVector3d pos(camera->GetPosition());
+  vtkVector3d focal(camera->GetFocalPoint());
+  vtkVector3d viewup(camera->GetViewUp());
+  vtkVector3d posVec = pos - focal;
+  vtkVector3d projVec;
 
-  double dop[3], vup[3];
+  //if (viewup.Dot(posVec) > 1e-3) {
+  //  std::cout << "warning, view up is not perpendicular to view direction" << std::endl;
+  //}
 
-  camera->GetDirectionOfProjection( dop );
-  vtkMath::Normalize( dop );
-  camera->GetViewUp( vup );
-  vtkMath::Normalize( vup );
+  // TODO
+  // Add a user settable vtkMatrix member to define the axes
+  vtkVector3d xvec(1, 0, 0);
+  vtkVector3d yvec(0, 1, 0);
+  vtkVector3d zvec(0, 0, 1);
 
-  double angle = vtkMath::DegreesFromRadians( acos(vtkMath::Dot( dop, vup) ) );
-  //printf("current angle: %.2f.  elvation delta: %.2f\n", angle, e);
+  // Project the view direction vector onto the XY plane.
+  // We'll compute yaw using the angle between the X axis and the
+  // projected view direction.
+  vtkMath::ProjectVector(posVec.GetData(), zvec.GetData(), projVec.GetData());
+  vtkVector3d projectedPosVec = posVec - projVec;
 
-  if ( ( angle + e ) > 177.0) {
-    e = 177.0 - angle;
+  // When the view direction is near parallel with the Z axis then the
+  // projected view direction cannot be used to compute yaw.
+  // In that case we'll use the view up vector to compute yaw.
+  bool useViewUpForYaw = projectedPosVec.Norm() < 1e-3;
+  if (useViewUpForYaw) {
+    vtkVector3d tempVec = -viewup;
+    tempVec.Normalize();
+    vtkMath::ProjectVector(tempVec.GetData(), zvec.GetData(), projVec.GetData());
+    projectedPosVec = tempVec - projVec;
   }
-  else if ( (angle + e < 3.0)) {
-    e = 3.0 - angle;
+
+  double yaw = vtkMath::DegreesFromRadians(vtkMath::AngleBetweenVectors(projectedPosVec.GetData(), xvec.GetData()));
+  double pitch = vtkMath::DegreesFromRadians(vtkMath::AngleBetweenVectors(posVec.GetData(), zvec.GetData())) - 90;
+
+  // Adjust the computed yaw, pitch to account for different quadrants.
+  if (projectedPosVec.Dot(yvec) < 0) {
+    yaw = 360 - yaw;
+  }
+  if (!useViewUpForYaw && viewup.Dot(zvec) < 0) {
+    pitch = 180 - pitch;
+    yaw = yaw + 180;
   }
 
-  camera->Elevation( e );
 
+  pitch = std::fmod(pitch - e, 360.0);
+  if (pitch < -90) {
+    pitch += 360;
+  }
+
+  /*
+  // Optional: invert mouse left/right when the view is inverted
+  if (pitch > 90 && pitch < 270) {
+    a = -a;
+  }
+  */
+
+  yaw = std::fmod(yaw + a, 360.0);
+  if (yaw < 0) {
+    yaw += 360;
+  }
+
+  vtkNew<vtkTransform> t;
+  t->PostMultiply();
+  t->Translate(-posVec.Norm(), 0.0, 0.0);
+  t->RotateY(pitch);
+  t->RotateZ(yaw);
+  camera->SetPosition(vtkVector3d(focal - vtkVector3d(t->GetPosition())).GetData());
+  camera->SetViewUp(vtkVector3d(t->TransformVector(0.0, 0.0, 1.0)).GetData());
   if ( this->AutoAdjustCameraClippingRange )
     {
     this->CurrentRenderer->ResetCameraClippingRange();

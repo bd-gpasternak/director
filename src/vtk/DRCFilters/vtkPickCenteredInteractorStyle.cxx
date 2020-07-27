@@ -26,7 +26,7 @@
 #include "vtkRenderWindowInteractor.h"
 #include "vtkRenderer.h"
 #include "vtkSphereSource.h"
-#include "vtkVector.h"
+#include "vtkVectorOperators.h"
 
 
 #include "vtkSmartPointer.h"
@@ -96,21 +96,6 @@ void MoveCamera(vtkCamera* camera, double* offset)
 
   camera->SetPosition(newP);
   camera->SetFocalPoint(newF);
-}
-
-vtkVector3d operator-(const vtkVector3d &lhs, const vtkVector3d &rhs)
-{
-  return vtkVector3d(lhs[0] - rhs[0], lhs[1] - rhs[1], lhs[2] - rhs[2]);
-}
-
-vtkVector3d operator+(const vtkVector3d &lhs, const vtkVector3d &rhs)
-{
-  return vtkVector3d(lhs[0] + rhs[0], lhs[1] + rhs[1], lhs[2] + rhs[2]);
-}
-
-vtkVector3d operator*(const vtkVector3d &lhs, const double rhs)
-{
-  return vtkVector3d(lhs[0] * rhs, lhs[1] * rhs, lhs[2] * rhs);
 }
 
 }

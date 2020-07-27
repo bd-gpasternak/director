@@ -25,6 +25,7 @@ set(headers
   vtkGridSource.h
   vtkInteractorStyleTerrain2.h
   vtkPickCenteredInteractorStyle.h
+  vtkVectorOperators.h
   )
 
 # extra source files to compile but do not python wrap

@@ -52,7 +52,7 @@ class Flyer(TimerCallback):
         self.view = view
         self.flyTime = 0.5
         self.startTime = 0.0
-        self.maintainViewDirection = False
+        self.maintainViewDirection = True
         self.positionZoom = 0.7
 
     def getCameraCopy(self):
