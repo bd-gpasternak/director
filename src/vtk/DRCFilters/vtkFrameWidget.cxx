@@ -184,14 +184,12 @@ void vtkFrameWidget::OnRotate()
 }
 
 //----------------------------------------------------------------------
-void vtkFrameWidget::UpdateMouseHover()
+bool vtkFrameWidget::UpdateMouseHover()
 {
   double e[2] = {static_cast<double>(this->Interactor->GetEventPosition()[0]),
                  static_cast<double>(this->Interactor->GetEventPosition()[1])};
 
-  vtkFrameWidgetRepresentation* rep = vtkFrameWidgetRepresentation::SafeDownCast(this->WidgetRep);
-  rep->OnMouseHover(e);
-  this->Render();
+  return vtkFrameWidgetRepresentation::SafeDownCast(this->WidgetRep)->OnMouseHover(e);
 }
 
 //----------------------------------------------------------------------
@@ -199,7 +197,10 @@ void vtkFrameWidget::OnMouseMove()
 {
   if (this->WidgetState == vtkFrameWidget::Start)
     {
-    this->UpdateMouseHover();
+    if (this->UpdateMouseHover())
+      {
+      this->Render();
+      }
     return;
     }
 

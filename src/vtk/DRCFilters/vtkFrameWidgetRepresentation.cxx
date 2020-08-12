@@ -710,77 +710,46 @@ void vtkFrameWidgetRepresentation::SetTransform(vtkTransform* t)
 }
 
 //----------------------------------------------------------------------------
-void vtkFrameWidgetRepresentation::HighlightOff()
+bool vtkFrameWidgetRepresentation::HighlightActor(vtkDataSet* dataset)
 {
-  this->HighlightActor(0);
-}
+  bool changed = false;
 
-//----------------------------------------------------------------------------
-void vtkFrameWidgetRepresentation::HighlightActor(vtkDataSet* dataset)
-{
-  /*
   for (size_t i = 0; i < this->Internal->Reps.size(); ++i)
     {
+    double ambient = 0.0;
     if (this->Internal->Reps[i].PolyData.GetPointer() == dataset)
       {
-      this->Internal->Reps[i].Actor->GetProperty()->SetOpacity(1.0);
-      this->Internal->Reps[i].Actor->GetProperty()->SetLineWidth(4.0);
+      ambient = 0.3;
       }
-    else
-      {
-      this->Internal->Reps[i].Actor->GetProperty()->SetOpacity(1.0);
-      this->Internal->Reps[i].Actor->GetProperty()->SetLineWidth(1.0);
-      }
+
+    vtkProperty* prop = this->Internal->Reps[i].Actor->GetProperty();
+    changed = changed || prop->GetAmbient() != ambient;
+    prop->SetAmbient(ambient);
+    prop->SetAmbientColor(prop->GetColor());
     }
 
   for (size_t i = 0; i < this->Internal->Axes.size(); ++i)
     {
+    double ambient = 0.0;
     if (this->Internal->Axes[i].PolyData.GetPointer() == dataset)
       {
-      this->Internal->Axes[i].Actor->GetProperty()->SetOpacity(1.0);
-      this->Internal->Axes[i].Actor->GetProperty()->SetLineWidth(4.0);
+      ambient = 0.3;
       }
-    else
-      {
-      this->Internal->Axes[i].Actor->GetProperty()->SetOpacity(1.0);
-      this->Internal->Axes[i].Actor->GetProperty()->SetLineWidth(1.0);
-      }
-    }
-  */
 
-
-  for (size_t i = 0; i < this->Internal->Reps.size(); ++i)
-    {
-    if (this->Internal->Reps[i].PolyData.GetPointer() == dataset)
-      {
-      this->Internal->Reps[i].Actor->GetProperty()->SetAmbient(0.3);
-      this->Internal->Reps[i].Actor->GetProperty()->SetAmbientColor(this->Internal->Reps[i].Actor->GetProperty()->GetColor());
-      }
-    else
-      {
-      this->Internal->Reps[i].Actor->GetProperty()->SetAmbient(0.0);
-      }
+    vtkProperty* prop = this->Internal->Axes[i].Actor->GetProperty();
+    changed = changed || prop->GetAmbient() != ambient;
+    prop->SetAmbient(ambient);
+    prop->SetAmbientColor(prop->GetColor());
     }
 
-  for (size_t i = 0; i < this->Internal->Axes.size(); ++i)
-    {
-    if (this->Internal->Axes[i].PolyData.GetPointer() == dataset)
-      {
-      this->Internal->Axes[i].Actor->GetProperty()->SetAmbient(0.3);
-      this->Internal->Axes[i].Actor->GetProperty()->SetAmbientColor(this->Internal->Axes[i].Actor->GetProperty()->GetColor());
-      }
-    else
-      {
-      this->Internal->Axes[i].Actor->GetProperty()->SetAmbient(0.0);
-      }
-    }
+  return changed;
 }
 
 //----------------------------------------------------------------------------
-void vtkFrameWidgetRepresentation::OnMouseHover(double e[2])
+bool vtkFrameWidgetRepresentation::OnMouseHover(double e[2])
 {
   vtkDataSet* dataset = PickDataSet(this->Internal->AxesPicker, e[0], e[1], this->PickTolerance, this->Renderer);
-  this->HighlightActor(dataset);
+  return this->HighlightActor(dataset);
 }
 
 //----------------------------------------------------------------------------

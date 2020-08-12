@@ -59,7 +59,7 @@ protected:
   void OnMouseMove();
   void OnTranslate();
   void OnRotate();
-  void UpdateMouseHover();
+  bool UpdateMouseHover();
 
   bool HandleRotationEnabled;
   int WidgetState;

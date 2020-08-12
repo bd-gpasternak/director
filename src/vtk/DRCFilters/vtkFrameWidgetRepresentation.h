@@ -63,9 +63,8 @@ public:
   virtual void StartWidgetInteraction(double e[2]) VTKDRCFILTERS_OVERRIDE;
   virtual void WidgetInteraction(double e[2]) VTKDRCFILTERS_OVERRIDE;
 
-  virtual void OnMouseHover(double e[2]);
-  virtual void HighlightOff();
-  virtual void HighlightActor(vtkDataSet* dataset);
+  virtual bool OnMouseHover(double e[2]);
+  virtual bool HighlightActor(vtkDataSet* dataset);
 
   virtual double *GetBounds() VTKDRCFILTERS_OVERRIDE;
 
