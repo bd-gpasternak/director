@@ -1,0 +1,38 @@
+diff --git a/Rendering/Core/vtkActor2D.cxx b/Rendering/Core/vtkActor2D.cxx
+index a74a2dc583..d5d58af18a 100644
+--- a/Rendering/Core/vtkActor2D.cxx
++++ b/Rendering/Core/vtkActor2D.cxx
+@@ -81,12 +81,33 @@ void vtkActor2D::ReleaseGraphicsResources(vtkWindow *win)
+   }
+ }
+ 
++//----------------------------------------------------------------------------
++namespace
++{
++  // Return true if the coordinate represents a world coordinate and the world
++  // coordinate position should be clipped in the viewport because its computed
++  // WorldToView()[2] is >= 1.0.
++  bool GetWorldCoordinateIsClipped(vtkCoordinate *coord, vtkViewport *viewport)
++  {
++    double* worldPos = coord->GetComputedWorldValue(viewport);
++    double val[3] = {worldPos[0], worldPos[1], worldPos[2]};
++    viewport->WorldToView(val[0], val[1], val[2]);
++    return val[2] >= 1.0;
++  }
++}
++
+ //----------------------------------------------------------------------------
+ // Renders an actor2D's property and then it's mapper.
+ int vtkActor2D::RenderOverlay(vtkViewport* viewport)
+ {
+   vtkDebugMacro(<< "vtkActor2D::RenderOverlay");
+ 
++  if (GetWorldCoordinateIsClipped(this->PositionCoordinate, viewport) ||
++      GetWorldCoordinateIsClipped(this->Position2Coordinate, viewport))
++  {
++    return 0;
++  }
++
+   // Is the viewport's RenderWindow capturing GL2PS-special prop, and does this
+   // actor represent text or mathtext?
+   if (vtkRenderer *renderer = vtkRenderer::SafeDownCast(viewport))
