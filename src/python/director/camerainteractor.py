@@ -91,15 +91,7 @@ class CameraInteractor(vieweventfilter.ViewEventFilter):
             if actor != self.cameraCenterObj.actor:
                 actor.SetPickable(True)
 
-        #res = vis.pickPoint(displayPoint, self.view, pickType='render')
-        #if res.pickedProp:
-        #    print('got pick with hardware')
-        #if not res.pickedProp:
-        res = vis.pickPoint(displayPoint, self.view, pickType='points', tolerance=0.0005)
-        if not res.pickedProp:
-            res = vis.pickPoint(displayPoint, self.view, pickType='points', tolerance=0.001)
-        if not res.pickedProp:
-            res = vis.pickPoint(displayPoint, self.view, pickType='cells')
+        res = vis.pickPoint(displayPoint, self.view, pickType='cells')
 
         for actor, pickable in zip(actors, pickableSettings):
             actor.SetPickable(pickable)

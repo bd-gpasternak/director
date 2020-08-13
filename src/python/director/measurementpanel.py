@@ -51,6 +51,9 @@ class MeasurementPanel(uipanel.UiPanel):
         uipanel.UiPanel.__init__(self, 'ddMeasurementPanel.ui')
 
         self.view = view
+        self.ui.toleranceSpinBox.value = 1.0
+        self.ui.toleranceSpinBox.singleStep = 0.1
+        self.ui.toleranceSpinBox.decimals = 2
         self.ui.enabledCheck.connect('toggled(bool)', self.onEnabledCheckBox)
         self.ui.clearButton.connect('clicked()', self.onClear)
 
@@ -166,8 +169,7 @@ class MeasurementPanel(uipanel.UiPanel):
         else:
             raise Exception('unknown pick type')
 
-
-        tolerance = self.ui.toleranceSpinBox.value
+        tolerance = self.ui.toleranceSpinBox.value * vis.getPickTolerance(self.view)
         pickPointFields = vis.pickPoint(
             displayPoint,
             self.view,

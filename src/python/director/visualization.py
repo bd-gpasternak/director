@@ -1553,9 +1553,21 @@ def pickImage(displayPoint, view, obj=None):
         return pickedDataset, picker.GetPointIJK()
 
 
-def pickProp(displayPoint, view):
+# The pick tolerance parameters are a slope and offset that were
+# determined empirically to compute pick tolerance as a function
+# of view tickness (distance between near and far clipping planes).
+PICK_TOLERANCE_PARAMETERS = (35, 125)
 
-    for tolerance in (0.0, 0.005, 0.01):
+
+def getPickTolerance(view):
+    '''Returns a default pick tolerance value that is computed from the view thickness.'''
+    m, b = PICK_TOLERANCE_PARAMETERS
+    return 1 / (m * view.camera().GetThickness() + b)
+
+
+def pickProp(displayPoint, view):
+    tol = getPickTolerance(view)
+    for tolerance in (0.0, tol, tol*2):
         pickType = 'render' if tolerance == 0.0 else 'cells'
         pickData = pickPoint(displayPoint, view, pickType=pickType, tolerance=tolerance)
         pickedPoint = pickData.pickedPoint
@@ -1567,7 +1579,7 @@ def pickProp(displayPoint, view):
     return None, None, None
 
 
-def pickPoint(displayPoint, view, obj=None, pickType='points', tolerance=0.01):
+def pickPoint(displayPoint, view, obj=None, pickType='points', tolerance=None):
     """
 
     :param displayPoint:
@@ -1591,6 +1603,9 @@ def pickPoint(displayPoint, view, obj=None, pickType='points', tolerance=0.01):
     if isinstance(obj, str):
         obj = om.findObjectByName(obj)
         assert obj
+
+    if tolerance is None:
+        tolerance = getPickTolerance(view)
 
     wasTexturedBackground = False
     if pickType == 'render':

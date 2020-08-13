@@ -16,7 +16,7 @@ class PointPicker(object):
         self.view = view
         self.obj = obj
         self.pickType = 'points'
-        self.tolerance = 0.01
+        self.tolerance = 1.0
         self.numberOfPoints = numberOfPoints
         self.drawLines = drawLines
         self.drawClosedLoop = False
@@ -136,14 +136,16 @@ class PointPicker(object):
     def tick(self):
 
         if self.obj is None:
+            tolerance = vis.getPickTolerance(self.view) * self.tolerance
             pickedPointFields = vis.pickPoint(self.lastMovePos, self.view, pickType=self.pickType,
-                                                   tolerance=self.tolerance)
+                                                   tolerance=tolerance)
             self.hoverPos = pickedPointFields.pickedPoint
             prop = pickedPointFields.pickedProp
             if prop is None:
                 self.hoverPos = None
         else:
-            pickedPointFields = vis.pickPoint(self.lastMovePos, self.view, obj=self.obj, pickType=self.pickType, tolerance=self.tolerance)
+            tolerance = vis.getPickTolerance(self.view) * self.tolerance
+            pickedPointFields = vis.pickPoint(self.lastMovePos, self.view, obj=self.obj, pickType=self.pickType, tolerance=tolerance)
             self.hoverPos = pickedPointFields.pickedPoint
 
         self.draw()
@@ -422,7 +424,7 @@ class ObjectPicker(object):
     def __init__(self, view, callback=None, abortCallback=None, numberOfObjects=1, getObjectsFunction=None, hoverColor=[1.0, 0.8, 0.8, 1.0]):
 
         self.view = view
-        self.tolerance = 0.01
+        self.tolerance = 1.0
         self.numberOfObjects = numberOfObjects
         self.getObjectsFunction = getObjectsFunction
         self.callbackFunc = callback
@@ -537,7 +539,8 @@ class ObjectPicker(object):
 
         objs = self.getObjectsFunction() if self.getObjectsFunction else None
 
-        pickedPointFields = vis.pickPoint(self.lastMovePos, self.view, pickType='cells', tolerance=self.tolerance,
+        tolerance = vis.getPickTolerance(self.view) * self.tolerance
+        pickedPointFields = vis.pickPoint(self.lastMovePos, self.view, pickType='cells', tolerance=tolerance,
                                               obj=objs)
         self.hoverPos = pickedPointFields.pickedPoint
         prop = pickedPointFields.pickedProp
