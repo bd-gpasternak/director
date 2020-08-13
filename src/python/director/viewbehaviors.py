@@ -183,3 +183,6 @@ class ViewBehaviors(vieweventfilter.ViewEventFilter):
 
         if consumed:
             self.consumeEvent()
+
+    def onEndRender(self):
+        vis.updateFramePickTolerances(self.view)

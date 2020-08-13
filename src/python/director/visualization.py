@@ -1692,6 +1692,20 @@ def findPickedObject(displayPoint, view):
     obj = getObjectByProp(pickedProp) or getObjectByDataSet(pickedDataset)
     return obj, pickedPoint
 
+
+def findFrameRepresentations(view):
+    props = view.renderer().GetViewProps()
+    props = [props.GetItemAsObject(i) for i in range(props.GetNumberOfItems())]
+    return [p for p in props if isinstance(p, vtk.vtkFrameWidgetRepresentation)]
+
+
+def updateFramePickTolerances(view, tolerance=None):
+    if tolerance is None:
+        tolerance = getPickTolerance(view)
+    for rep in findFrameRepresentations(view):
+        rep.SetPickTolerance(tolerance)
+
+
 """
 Toggles whether anti-aliasing is enabled or not.
 This sets a static variable in the ddQVTKWidgeView
