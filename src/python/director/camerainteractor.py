@@ -19,8 +19,6 @@ class CameraInteractor(vieweventfilter.ViewEventFilter):
         self.cameraCenterObj.setProperty('Color', [1, 1, 0])
         self.cameraCenterObj.actor.SetUserTransform(vtk.vtkTransform())
         self.cameraCenterObj.actor.SetPickable(False)
-        self.renderWindowobserver = view.renderWindow().AddObserver('StartEvent', self.onStartRender)
-        self.renderWindowobserver = view.renderWindow().AddObserver('EndEvent', self.onEndRender)
         self.style = vtk.vtkPickCenteredInteractorStyle()
         self.showOnMove = False
         self.showCenter = False
@@ -128,11 +126,11 @@ class CameraInteractor(vieweventfilter.ViewEventFilter):
         self.showOnMove = True
         self.style.SetCustomCenterOfRotation(worldPoint[:3])
 
-    def onEndRender(self, renderWindow, event):
+    def onEndRender(self):
         if not self._enabled:
             return
 
-    def onStartRender(self, renderWindow, event):
+    def onStartRender(self):
         if not self._enabled:
             return
 

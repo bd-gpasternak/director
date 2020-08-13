@@ -14,6 +14,7 @@ class ViewEventFilter(object):
         self._leftMouseStart = None
         self._rightMouseStart = None
         self._handlers = {}
+        self._observers = []
 
         if (vtk.VTK_MAJOR_VERSION, vtk.VTK_MINOR_VERSION) >= (8, 2):
             self._filterObject = QtGui.QApplication.instance()
@@ -33,10 +34,14 @@ class ViewEventFilter(object):
         for eventType in self.getFilteredEvents():
             self.eventFilter.addFilteredEventType(eventType)
         self._filterObject.installEventFilter(self.eventFilter)
+        self._observers.append(self.view.renderWindow().AddObserver('StartEvent', lambda obj, event: self.onStartRender()))
+        self._observers.append(self.view.renderWindow().AddObserver('EndEvent', lambda obj, event: self.onEndRender()))
 
     def removeEventFilter(self):
         self._filterObject.removeEventFilter(self.eventFilter)
         self.eventFilter.disconnect('handleEvent(QObject*, QEvent*)', self._filterEvent)
+        for observer in self._observers:
+            self.view.renderWindow().RemoveObserver(observer)
         self.eventFilter = None
 
     def getFilteredEvents(self):
@@ -163,4 +168,10 @@ class ViewEventFilter(object):
         pass
 
     def onKeyRelease(self, event):
+        pass
+
+    def onStartRender(self):
+        pass
+
+    def onEndRender(self):
         pass
