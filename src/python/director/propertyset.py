@@ -246,9 +246,22 @@ class PropertyPanelHelper(object):
                     PropertyPanelHelper._addProperty(panel, propertyName, attributes, value)
 
     @staticmethod
-    def onPropertyValueChanged(panel, properties, propertyName):
-        prop = panel.getProperty(propertyName)
+    def getPanelProperty(panel, fullPropertyName):
+        if "/" in fullPropertyName:
+            parent = None
+            for name in fullPropertyName.split("/"):
+                if parent:
+                    prop = panel.getSubProperty(parent, name)
+                else:
+                    prop = panel.getProperty(name)
+                parent = prop
+        else:
+            prop = panel.getProperty(fullPropertyName)
+        return prop
 
+    @staticmethod
+    def onPropertyValueChanged(panel, properties, propertyName):
+        prop = PropertyPanelHelper.getPanelProperty(panel, propertyName)
         if prop is not None:
 
             propertyValue = properties.getProperty(propertyName)
