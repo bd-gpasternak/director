@@ -651,13 +651,13 @@ class TextItem(om.ObjectModelItem):
 def updateText(text, name, **kwargs):
     obj = om.findObjectByName(name, parent=getParentObj(kwargs.get('parent')))
     if obj is None:
-        obj or showText(text, name, **kwargs)
+        obj = showText(text, name, **kwargs)
     else:
         obj.setProperty('Text', text)
     return obj
 
 
-def showText(text, name, fontSize=18, position=(10, 10), parent=None, view=None):
+def showText(text, name, fontSize=18, position=(10, 10), color=None, parent=None, view=None):
 
     view = view or app.getCurrentRenderView()
     assert view
@@ -665,6 +665,8 @@ def showText(text, name, fontSize=18, position=(10, 10), parent=None, view=None)
     item = TextItem(name, text, view=view)
     item.setProperty('Font Size', fontSize)
     item.setProperty('Position', list(position))
+    if color is not None:
+        item.setProperty('Color', list(color))
 
     om.addToObjectModel(item, getParentObj(parent))
     return item
