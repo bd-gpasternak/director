@@ -39,9 +39,13 @@ class DepthScanner(object):
         self.view = view
 
         self.depthImage = None
+        self.pointCloud = None
         self.pointCloudObj = None
         self.renderObserver = None
+        self.imageView = None
+        self.pointCloudView = None
         self.parentFolder = 'depth scanner'
+        self.docks = []
 
         self.windowToDepthBuffer = vtk.vtkWindowToImageFilter()
         self.windowToDepthBuffer.SetInput(self.view.renderWindow())
@@ -58,8 +62,7 @@ class DepthScanner(object):
             self.windowToDepthBuffer.ReadFrontBufferOff()
             self.windowToColorBuffer.ReadFrontBufferOff()
 
-        self.initDepthImageView()
-        self.initPointCloudView()
+        self.initDepthImage()
         self.initRenderObserver()
 
         self._block = False
@@ -78,12 +81,15 @@ class DepthScanner(object):
     def getColorBufferImage(self):
         return self.windowToColorBuffer.GetOutput()
 
+    def getPointCloud(self):
+        return self.pointCloud
+
     def updateBufferImages(self):
         for f in [self.windowToDepthBuffer, self.windowToColorBuffer]:
             f.Modified()
             f.Update()
 
-    def initDepthImageView(self):
+    def initDepthImage(self):
 
         self.depthImageColorByRange = [0.0, 4.0]
 
@@ -103,10 +109,10 @@ class DepthScanner(object):
         self.imageMapToColors.SetLookupTable(self.depthImageLookupTable)
         self.imageMapToColors.SetInputConnection(self.depthScaleFilter.GetOutputPort())
 
+    def initDepthImageView(self):
         self.imageView = imageview.ImageView()
         self.imageView.view.setWindowTitle('Depth image')
         self.imageView.setImage(self.imageMapToColors.GetOutput())
-        self.docks = []
 
     def initPointCloudView(self):
         self.pointCloudView = PythonQt.dd.ddQVTKWidgetView()
@@ -124,9 +130,6 @@ class DepthScanner(object):
         self.renderObserver = self.view.renderWindow().AddObserver('EndEvent', onEndRender)
 
     def update(self):
-        if not self.pointCloudView.visible and not self.imageView.view.visible:
-            return
-
         self._block = True
         if self.reRender:
             self.view.forceRender()
@@ -135,23 +138,40 @@ class DepthScanner(object):
 
         depthImage, polyData = computeDepthImageAndPointCloud(self.getDepthBufferImage(), self.getColorBufferImage(), self.view.camera())
 
+        self.pointCloud = polyData
         self.depthScaleFilter.SetInputData(depthImage)
         self.depthScaleFilter.Update()
-
         self.depthImageLookupTable.SetRange(self.depthScaleFilter.GetOutput().GetScalarRange())
         self.imageMapToColors.Update()
-        self.imageView.resetCamera()
-        #self.imageView.view.render()
 
-        if not self.pointCloudObj:
-            self.pointCloudObj = vis.showPolyData(polyData, 'point cloud', colorByName='rgb', view=self.pointCloudView, parent=self.parentFolder)
-        else:
-            self.pointCloudObj.setPolyData(polyData)
-        self.pointCloudView.render()
+        self.updateViews()
         if self._updateFunc:
             self._updateFunc()
 
+    def updateViews(self):
+        if not self.viewsAreVisible():
+            return
+
+        self.imageView.resetCamera()
+        if not self.pointCloudObj:
+            self.pointCloudObj = vis.showPolyData(self.pointCloud, 'point cloud', colorByName='rgb', view=self.pointCloudView, parent=self.parentFolder)
+        else:
+            self.pointCloudObj.setPolyData(self.pointCloud)
+        self.pointCloudView.render()
+
+    def haveViews(self):
+        return bool(self.imageView or self.pointCloudView)
+
+    def viewsAreVisible(self):
+        if self.haveViews():
+            return bool(self.pointCloudView.visible or self.imageView.view.visible)
+        return False
+
     def addViewsToDock(self, app):
+        if not self.imageView:
+            self.initDepthImageView()
+        if not self.pointCloudView:
+            self.initPointCloudView()
         for view in [self.imageView.view, self.pointCloudView]:
             dock = app.addWidgetToDock(view, QtCore.Qt.RightDockWidgetArea)
             dock.setMinimumWidth(300)
@@ -207,7 +227,8 @@ def getCameraTransform(camera):
 
 
 def initCameraFrustumVisualizer(depthScanner, defaultScale=50):
-
+    if not depthScanner.pointCloudView:
+        depthScanner.initPointCloudView()
     cameraObj = vis.showPolyData(vtk.vtkPolyData(), 'camera', parent=depthScanner.parentFolder, view=depthScanner.pointCloudView)
     cameraFrame = vis.addChildFrame(cameraObj)
     cameraFrame.setProperty('Scale', defaultScale)
@@ -284,23 +305,10 @@ def main(globalsDict=None):
     app.mainWindow.show()
     app.mainWindow.resize(920,600)
     app.mainWindow.move(0,0)
-
     view = app.view
-    view.setParent(None)
-    mdiArea = QtGui.QMdiArea()
-    app.mainWindow.setCentralWidget(mdiArea)
-    subWindow = mdiArea.addSubWindow(view)
-    subWindow.setMinimumSize(300,300)
-    subWindow.setWindowTitle('Camera image')
-    subWindow.resize(640, 480)
-    mdiArea.tileSubWindows()
-
-    #affordanceManager = affordancemanager.AffordanceObjectModelManager(view)
 
     depthScanner = DepthScanner(view)
-    depthScanner.update()
     depthScanner.addViewsToDock(app.app)
-
 
     # add some test data
     def addTestData():
