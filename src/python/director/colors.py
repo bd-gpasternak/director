@@ -2,7 +2,7 @@
 This module exports a variable named `colors` which has as members all the
 colors available in vtkNamedColors.  To see the available colors visit:
 
-    https://vtk.org/Wiki/VTK/Examples/Python/Visualization/VTKNamedColorPatches_html
+    https://htmlpreview.github.io/?https://github.com/Kitware/vtk-examples/blob/gh-pages/VTKNamedColorPatches.html
 
 The color members are accessed using lower case strings, while dict lookup
 is case insensitive, for example:
