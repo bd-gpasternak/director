@@ -168,8 +168,11 @@ class ConsoleApp(object):
 
     @staticmethod
     def getTestingArgs(dataDirRequired=False, outputDirRequired=False):
-
-      parser = drcargs.DRCArgParser().getParser()
+      '''Return a argparse namespace object that contains just the testing arugments
+      from the parsed command line args.  This function can be called anytime and it
+      will not cause the common ArgumentParser instance to display the help and/or exit.
+      '''
+      parser = argparse.ArgumentParser(add_help=False)
       parser.add_argument('--testing', action='store_true', help='enable testing mode')
       parser.add_argument('--data-dir', type=str, help='testing data directory', required=dataDirRequired)
       parser.add_argument('--output-dir', type=str, help='output directory for writing test output', required=outputDirRequired)
