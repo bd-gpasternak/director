@@ -95,8 +95,8 @@ if (NOT USE_SYSTEM_EIGEN)
 
 ExternalProject_Add(
   eigen
-  URL https://bitbucket.org/eigen/eigen/get/3.3.3.tar.gz
-  URL_MD5 f21cee193e15e55cfd15ebbc16fc00a7
+  URL https://gitlab.com/libeigen/eigen/-/archive/3.3.3/eigen-3.3.3.tar.gz
+  URL_MD5 90984b0e150bdb6ec38012472097948b
   CMAKE_CACHE_ARGS
     ${default_cmake_args}
     ${qt_args}
