@@ -385,7 +385,9 @@ else()
   ExternalProject_Add(vtk
     GIT_REPOSITORY https://github.com/kitware/vtk
     GIT_TAG v8.2.0
-    PATCH_COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkActor2D.cxx.patch
+    PATCH_COMMAND git apply
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkActor2D.cxx.patch
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VTK-Compatibility-for-Python-3.8.patch
 
     CMAKE_CACHE_ARGS
       ${default_cmake_args}
