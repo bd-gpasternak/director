@@ -23,7 +23,10 @@ void init() {
   static int argc = static_cast<int>((sizeof(argv) / sizeof(argv[0])) - 1);
 
   QVTKOpenGLInit init;
-  application = new QApplication(argc, argv);
+  application = qobject_cast<QApplication*>(QApplication::instance());
+  if (!application) {
+    application = new QApplication(argc, argv);
+  }
   pythonManager = new ddPythonManager;
 }
 
