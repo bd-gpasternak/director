@@ -42,17 +42,25 @@ def fromQColor(propertyName, propertyValue):
 
 
 def toQProperty(propertyName, propertyValue):
-    if 'color' in propertyName.lower() and isinstance(propertyValue,
-                                                      (list, tuple)) and len(propertyValue) == 3:
-        return QtGui.QColor(propertyValue[0] * 255.0, propertyValue[1] * 255.0,
-                            propertyValue[2] * 255.0)
-    elif isinstance(propertyValue, np.float):
-        return float(propertyValue)
-    elif isinstance(propertyValue, (list, tuple, np.ndarray)) and len(propertyValue) and isinstance(
-            propertyValue[0], np.float):
-        return [float(x) for x in propertyValue]
-    else:
+
+    def isNpInstance(value):
+        """ Is this a numpy number that needs to be converted back to a default repr """
+        return isinstance(value, (np.int, np.float))
+
+    def isIterable(value):
+        """ Whether it's an iterable we support, of non-zero length. """
+        return isinstance(propertyValue, (list, tuple, np.ndarray)) and len(propertyValue)
+
+    if isIterable(propertyValue) and isNpInstance(propertyValue[0]):
+        propertyValue = [float(x) for x in propertyValue]
+        if 'color' in propertyName.lower() and len(propertyValue) == 3:
+            return QtGui.QColor(*[255.0 * x for x in propertyValue])
         return propertyValue
+
+    if isNpInstance(propertyValue):
+        return float(propertyValue)
+
+    return propertyValue
 
 
 class PropertySet(object):
