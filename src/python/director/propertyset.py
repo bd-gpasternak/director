@@ -49,7 +49,7 @@ def toQProperty(propertyName, propertyValue):
 
     def isIterable(value):
         """ Whether it's an iterable we support, of non-zero length. """
-        return isinstance(propertyValue, (list, tuple, np.ndarray)) and len(propertyValue)
+        return isinstance(value, (list, tuple, np.ndarray)) and len(value)
 
     if isIterable(propertyValue) and isNpInstance(propertyValue[0]):
         propertyValue = [float(x) for x in propertyValue]
