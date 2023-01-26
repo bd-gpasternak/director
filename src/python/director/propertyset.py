@@ -42,24 +42,24 @@ def fromQColor(propertyName, propertyValue):
 
 
 def toQProperty(propertyName, propertyValue):
-
-    def isNpInstance(value):
-        """ Is this a numpy number that needs to be converted back to a default repr """
-        return isinstance(value, (np.int, np.float))
-
-    def isIterable(value):
-        """ Whether it's an iterable we support, of non-zero length. """
-        return isinstance(value, (list, tuple, np.ndarray)) and len(value)
-
-    if isIterable(propertyValue) and isNpInstance(propertyValue[0]):
-        propertyValue = [float(x) for x in propertyValue]
+    '''This function applies necessary conversions to pass property values
+    into the Qt ddPropertiesPanel widget.  This converts numpy arrays to lists,
+    numpy floating and integer types to python float and int, and color 3-tuples
+    from the range 0.-1. to QColor(int 0-255).
+    '''
+    is_iterable = isinstance(propertyValue, (list, tuple, np.ndarray)) and len(propertyValue)
+    if is_iterable:
         if 'color' in propertyName.lower() and len(propertyValue) == 3:
-            return QtGui.QColor(*[255.0 * x for x in propertyValue])
-        return propertyValue
-
-    if isNpInstance(propertyValue):
-        return float(propertyValue)
-
+            return QtGui.QColor(*[int(255 * x) for x in propertyValue])
+        if isinstance(propertyValue[0], np.integer):
+            return [int(x) for x in propertyValue]
+        if isinstance(propertyValue[0], np.floating):
+            return [float(x) for x in propertyValue]
+    else:
+        if isinstance(propertyValue, np.integer):
+            return int(propertyValue)
+        if isinstance(propertyValue, np.floating):
+            return float(propertyValue)
     return propertyValue
 
 
