@@ -1,5 +1,5 @@
 from vtk import *
-from director.vtkDRCFiltersPython import *
+from director.vtkDRCFilters import *
 
 
 try:

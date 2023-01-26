@@ -19,11 +19,11 @@ cd $packageDir
 
 
 # remove unused files
-rm -r bin include plugins share lib/cmake lib/pkgconfig lib/*.a lib/python3*/site-packages/urdf_parser_py
+rm -rf bin include plugins share lib/cmake lib/pkgconfig lib/*.a lib/python3*/site-packages/urdf_parser_py lib/vtk lib/vtk-9.2
 
 # remove pycache and symlinks
 find . -name __pycache__ | xargs rm -r
-find . -type l | xargs rm
+#find . -type l | xargs rm
 
 
 cd lib
@@ -38,12 +38,16 @@ mv vtk.py vtk/__init__.py
 cd director
 for f in $(ls lib* *.so | sort -u);
 do
-  $patchelfExe --set-rpath '$ORIGIN:$ORIGIN/../vtkmodules' --force-rpath $f
+  if [[ ! -L $f ]]; then
+    $patchelfExe --set-rpath '$ORIGIN:$ORIGIN/../vtkmodules' --force-rpath $f
+  fi
 done
 
 
 cd ../vtkmodules
 for f in $(ls lib* *.so | sort -u);
 do
-  $patchelfExe --set-rpath '$ORIGIN' --force-rpath $f
+  if [[ ! -L $f ]]; then
+    $patchelfExe --set-rpath '$ORIGIN' --force-rpath $f
+  fi
 done

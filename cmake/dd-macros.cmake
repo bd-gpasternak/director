@@ -1,6 +1,5 @@
 macro(setup_python)
-  find_package(PythonLibs 3.4 REQUIRED)
-  find_package(PythonInterp 3.4 REQUIRED)
+  find_package(Python3 COMPONENTS Interpreter Development)
 endmacro()
 
 
@@ -59,15 +58,6 @@ macro(qt_add_resources)
     qt4_add_resources(${ARGN})
   else()
     qt5_add_resources(${ARGN})
-  endif()
-endmacro()
-
-macro(check_vtk_qt_version)
-  if(NOT (VTK_QT_VERSION VERSION_EQUAL DD_QT_VERSION))
-    message(FATAL_ERROR "VTK is compiled with a different version of Qt than "
-                        "the one requested.\n"
-                        "Expected Qt version Qt${DD_QT_VERSION} but "
-                        "VTK is compiled with Qt${VTK_QT_VERSION}.")
   endif()
 endmacro()
 

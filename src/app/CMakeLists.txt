@@ -9,18 +9,16 @@ else()
 endif()
 
 find_package(VTK REQUIRED COMPONENTS
-  vtkWrappingPythonCore
-  vtkGUISupportQt
-  vtkInteractionWidgets
-  vtkRenderingAnnotation
-  vtkRenderingFreeType
-  vtkInteractionStyle
-  vtkIOXML
-  vtkIOImage
-  vtkIOGeometry
+  WrappingPythonCore
+  GUISupportQt
+  InteractionWidgets
+  RenderingAnnotation
+  RenderingFreeType
+  InteractionStyle
+  IOXML
+  IOImage
+  IOGeometry
   )
-include(${VTK_USE_FILE})
-check_vtk_qt_version()
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
