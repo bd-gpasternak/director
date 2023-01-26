@@ -40,7 +40,7 @@ public:
   // Description:
   // Standard methods for the class.
   vtkTypeMacro(vtkFrameWidgetRepresentation,vtkWidgetRepresentation);
-  void PrintSelf(ostream& os, vtkIndent indent) VTKDRCFILTERS_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Return the transform describing the frame.  Changes to this transform
@@ -57,19 +57,19 @@ public:
 
   // Description:
   // These are methods that satisfy vtkWidgetRepresentation's API.
-  virtual void BuildRepresentation() VTKDRCFILTERS_OVERRIDE;
+  virtual void BuildRepresentation() override;
   virtual int ComputeInteractionState(int X, int Y, int modify=0)
-    VTKDRCFILTERS_OVERRIDE;
-  virtual void StartWidgetInteraction(double e[2]) VTKDRCFILTERS_OVERRIDE;
-  virtual void WidgetInteraction(double e[2]) VTKDRCFILTERS_OVERRIDE;
+    override;
+  virtual void StartWidgetInteraction(double e[2]) override;
+  virtual void WidgetInteraction(double e[2]) override;
 
   virtual bool OnMouseHover(double e[2]);
   virtual bool HighlightActor(vtkDataSet* dataset);
 
-  virtual double *GetBounds() VTKDRCFILTERS_OVERRIDE;
+  virtual double *GetBounds() override;
 
   virtual void GetActors(vtkPropCollection* propCollection)
-    VTKDRCFILTERS_OVERRIDE;
+    override;
 
   void SetTranslateAxisEnabled(int axisId, bool enabled);
   void SetRotateAxisEnabled(int axisId, bool enabled);
@@ -78,12 +78,12 @@ public:
 
   // Description:
   // Methods supporting, and required by, the rendering process.
-  virtual void ReleaseGraphicsResources(vtkWindow*) VTKDRCFILTERS_OVERRIDE;
-  virtual int RenderOpaqueGeometry(vtkViewport*) VTKDRCFILTERS_OVERRIDE;
-  virtual int RenderOverlay(vtkViewport*) VTKDRCFILTERS_OVERRIDE;
+  virtual void ReleaseGraphicsResources(vtkWindow*) override;
+  virtual int RenderOpaqueGeometry(vtkViewport*) override;
+  virtual int RenderOverlay(vtkViewport*) override;
   virtual int RenderTranslucentPolygonalGeometry(vtkViewport*)
-    VTKDRCFILTERS_OVERRIDE;
-  virtual int HasTranslucentPolygonalGeometry() VTKDRCFILTERS_OVERRIDE;
+    override;
+  virtual int HasTranslucentPolygonalGeometry() override;
 
   // Description:
   // The interaction state may be set from a widget (e.g., vtkBoxWidget2) or
@@ -115,7 +115,7 @@ public:
 
 protected:
   vtkFrameWidgetRepresentation();
-  virtual ~vtkFrameWidgetRepresentation() VTKDRCFILTERS_OVERRIDE;
+  virtual ~vtkFrameWidgetRepresentation() override;
 
   bool UseTubeFilter;
   int TranslateAxis;
@@ -137,9 +137,9 @@ private:
   vtkInternal* Internal;
 
   vtkFrameWidgetRepresentation(const vtkFrameWidgetRepresentation&)
-    VTKDRCFILTERS_DELETE_FUNCTION;
+    =delete;
   void operator=(const vtkFrameWidgetRepresentation&)
-    VTKDRCFILTERS_DELETE_FUNCTION;
+    =delete;
 };
 
 #endif

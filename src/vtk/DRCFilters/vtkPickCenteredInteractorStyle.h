@@ -36,27 +36,27 @@ public:
   static vtkPickCenteredInteractorStyle *New();
 
   vtkTypeMacro(vtkPickCenteredInteractorStyle,vtkInteractorStyle);
-  void PrintSelf(ostream& os, vtkIndent indent) VTKDRCFILTERS_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Event bindings controlling the effects of pressing mouse buttons
   // or moving the mouse.
-  virtual void OnMouseMove() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnLeftButtonDown() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnLeftButtonUp() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnMiddleButtonDown() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnMiddleButtonUp() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnRightButtonDown() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnRightButtonUp() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnMouseWheelForward() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnMouseWheelBackward() VTKDRCFILTERS_OVERRIDE;
-  virtual void OnChar() VTKDRCFILTERS_OVERRIDE;
+  virtual void OnMouseMove() override;
+  virtual void OnLeftButtonDown() override;
+  virtual void OnLeftButtonUp() override;
+  virtual void OnMiddleButtonDown() override;
+  virtual void OnMiddleButtonUp() override;
+  virtual void OnRightButtonDown() override;
+  virtual void OnRightButtonUp() override;
+  virtual void OnMouseWheelForward() override;
+  virtual void OnMouseWheelBackward() override;
+  virtual void OnChar() override;
 
   // These methods for the different interactions in different modes
   // are overridden in subclasses to perform the correct motion.
-  virtual void Rotate() VTKDRCFILTERS_OVERRIDE;
-  virtual void Pan() VTKDRCFILTERS_OVERRIDE;
-  virtual void Dolly() VTKDRCFILTERS_OVERRIDE;
+  virtual void Rotate() override;
+  virtual void Pan() override;
+  virtual void Dolly() override;
 
   // Dolly by the given value.  See vtkCamera::Dolly().
   void Dolly(double value);
@@ -77,7 +77,7 @@ public:
 
 protected:
   vtkPickCenteredInteractorStyle();
-  virtual ~vtkPickCenteredInteractorStyle() VTKDRCFILTERS_OVERRIDE;
+  virtual ~vtkPickCenteredInteractorStyle() override;
 
   void OnMouseButtonDown(int button);
   void OnMouseButtonUp(int button);
@@ -93,9 +93,9 @@ protected:
 
 private:
   vtkPickCenteredInteractorStyle(const vtkPickCenteredInteractorStyle&)
-    VTKDRCFILTERS_DELETE_FUNCTION;
+    =delete;
   void operator=(const vtkPickCenteredInteractorStyle&)
-    VTKDRCFILTERS_DELETE_FUNCTION;
+    =delete;
 
 };
 
