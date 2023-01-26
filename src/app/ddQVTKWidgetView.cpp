@@ -27,7 +27,7 @@
 #include <vtkTextProperty.h>
 
 #include <QSurfaceFormat>
-#include <QVTKOpenGLWidget.h>
+#include <QVTKOpenGLStereoWidget.h>
 
 #include <QTimer>
 #include <QVBoxLayout>
@@ -73,7 +73,7 @@ public:
     this->RenderTimer.setInterval(1000/timerFramesPerSeconds);
   }
 
-  QVTKOpenGLWidget* VTKWidget;
+  QVTKOpenGLStereoWidget* VTKWidget;
 
   vtkSmartPointer<vtkRenderer> Renderer;
   vtkSmartPointer<vtkRenderer> RendererBase;
@@ -102,7 +102,7 @@ ddQVTKWidgetView::ddQVTKWidgetView(QWidget* parent) : ddViewBase(parent)
 
   QVBoxLayout* layout = new QVBoxLayout(this);
   layout->setMargin(0);
-  this->Internal->VTKWidget = new QVTKOpenGLWidget;
+  this->Internal->VTKWidget = new QVTKOpenGLStereoWidget;
   layout->addWidget(this->Internal->VTKWidget);
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 4, 0)
@@ -111,9 +111,9 @@ ddQVTKWidgetView::ddQVTKWidgetView(QWidget* parent) : ddViewBase(parent)
 #else
   this->Internal->VTKWidget->SetUseTDx(true);
   this->Internal->RenderWindow = vtkSmartPointer<vtkRenderWindow>::New();
-  this->Internal->VTKWidget->SetRenderWindow(this->Internal->RenderWindow);
+  this->Internal->VTKWidget->setRenderWindow(this->Internal->RenderWindow);
 #endif
-  this->Internal->VTKWidget->SetRenderWindow(this->Internal->RenderWindow);
+  this->Internal->VTKWidget->setRenderWindow(this->Internal->RenderWindow);
 
   if (antiAliasingEnabled){
     this->Internal->RenderWindow->SetMultiSamples(8);
@@ -179,7 +179,8 @@ vtkCamera* ddQVTKWidgetView::camera() const
 //-----------------------------------------------------------------------------
 vtkRenderWindow* ddQVTKWidgetView::renderWindow() const
 {
-  return this->Internal->VTKWidget->GetRenderWindow();
+  //return this->Internal->VTKWidget->getRenderWindow();
+  return this->Internal->RenderWindow;
 }
 
 //-----------------------------------------------------------------------------
@@ -202,7 +203,7 @@ vtkLightKit* ddQVTKWidgetView::lightKit() const
 }
 
 //-----------------------------------------------------------------------------
-QVTKOpenGLWidget* ddQVTKWidgetView::vtkWidget() const
+QVTKOpenGLStereoWidget* ddQVTKWidgetView::vtkWidget() const
 {
   return this->Internal->VTKWidget;
 }
@@ -263,7 +264,7 @@ void ddQVTKWidgetView::setAntiAliasing(bool enabled)
   antiAliasingEnabled = enabled;
   if (!enabled)
   {
-    auto format = QVTKOpenGLWidget::defaultFormat();
+    auto format = QVTKOpenGLStereoWidget::defaultFormat();
     format.setSamples(0);
     QSurfaceFormat::setDefaultFormat(format);
   }

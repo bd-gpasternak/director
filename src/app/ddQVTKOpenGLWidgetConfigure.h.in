@@ -16,7 +16,7 @@
   #include <QVTKWidget.h>
   using QVTKOpenGLWidget = QVTKWidget;
 #else
-  #include <QVTKOpenGLWidget.h>
+  #include <QVTKOpenGLStereoWidget.h>
 #endif
 
 #endif
