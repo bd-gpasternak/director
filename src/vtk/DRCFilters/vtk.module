@@ -1,0 +1,11 @@
+NAME
+  DIRECTOR::DRCFilters
+LIBRARY_NAME
+  vtkDRCFilters
+DEPENDS
+  VTK::CommonCore
+  VTK::InteractionWidgets
+  VTK::RenderingCore
+  VTK::FiltersCore
+TEST_DEPENDS
+  VTK::TestingCore

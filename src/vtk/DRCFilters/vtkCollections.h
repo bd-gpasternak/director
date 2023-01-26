@@ -48,7 +48,7 @@ public:
   // Description:
   // Standard methods for the class.
   vtkTypeMacro(vtkCollections,vtkProp);
-  void PrintSelf(ostream& os, vtkIndent indent) VTKDRCFILTERS_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   void on_obj_collection_data(const char* data);
   void on_link_collection_data(const char* data);
@@ -57,12 +57,12 @@ public:
     
   // Description:
   // Methods supporting, and required by, the rendering process.
-  virtual void ReleaseGraphicsResources(vtkWindow*) VTKDRCFILTERS_OVERRIDE;
-  virtual int RenderOpaqueGeometry(vtkViewport*) VTKDRCFILTERS_OVERRIDE;
-  virtual int RenderOverlay(vtkViewport*) VTKDRCFILTERS_OVERRIDE;
+  virtual void ReleaseGraphicsResources(vtkWindow*) override;
+  virtual int RenderOpaqueGeometry(vtkViewport*) override;
+  virtual int RenderOverlay(vtkViewport*) override;
   virtual int RenderTranslucentPolygonalGeometry(vtkViewport*)
-    VTKDRCFILTERS_OVERRIDE;
-  virtual int HasTranslucentPolygonalGeometry() VTKDRCFILTERS_OVERRIDE;
+    override;
+  virtual int HasTranslucentPolygonalGeometry() override;
 
   class vtkInternal;
   vtkInternal* Internal;
@@ -97,7 +97,7 @@ public:
 
 protected:
   vtkCollections();
-  virtual ~vtkCollections() VTKDRCFILTERS_OVERRIDE;
+  virtual ~vtkCollections() override;
 
 private:
 
@@ -111,8 +111,8 @@ private:
   double time_elevation(int64_t id, double z, int collid);
 
 
-  vtkCollections(const vtkCollections&) VTKDRCFILTERS_DELETE_FUNCTION;
-  void operator=(const vtkCollections&) VTKDRCFILTERS_DELETE_FUNCTION;
+  vtkCollections(const vtkCollections&) =delete;
+  void operator=(const vtkCollections&) =delete;
 };
 
 #endif

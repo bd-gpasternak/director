@@ -54,7 +54,7 @@ use_cpp11()
 setup_qt()
 setup_python()
 setup_pkg_config_path()
-set(DD_INSTALL_PYTHON_DIR ${DD_INSTALL_LIB_DIR}/python${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}/site-packages)
+set(DD_INSTALL_PYTHON_DIR ${DD_INSTALL_LIB_DIR}/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages)
 
 # build project
 add_subdirectory(src)

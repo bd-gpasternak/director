@@ -1,4 +1,4 @@
-include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${PYTHON_INCLUDE_DIR})
 
 find_package(NumPy)
 if (NOT NUMPY_FOUND)

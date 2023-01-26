@@ -1,18 +1,18 @@
 diff --git a/Rendering/Core/vtkActor2D.cxx b/Rendering/Core/vtkActor2D.cxx
-index a74a2dc583..d5d58af18a 100644
+index 0ee01487a7..4f5a277da2 100644
 --- a/Rendering/Core/vtkActor2D.cxx
 +++ b/Rendering/Core/vtkActor2D.cxx
-@@ -81,12 +81,33 @@ void vtkActor2D::ReleaseGraphicsResources(vtkWindow *win)
+@@ -81,12 +81,33 @@ void vtkActor2D::ReleaseGraphicsResources(vtkWindow* win)
    }
  }
  
-+//----------------------------------------------------------------------------
++//------------------------------------------------------------------------------
 +namespace
 +{
 +  // Return true if the coordinate represents a world coordinate and the world
 +  // coordinate position should be clipped in the viewport because its computed
 +  // WorldToView()[2] is >= 1.0.
-+  bool GetWorldCoordinateIsClipped(vtkCoordinate *coord, vtkViewport *viewport)
++  bool GetWorldCoordinateIsClipped(vtkCoordinate* coord, vtkViewport* viewport)
 +  {
 +    double* worldPos = coord->GetComputedWorldValue(viewport);
 +    double val[3] = {worldPos[0], worldPos[1], worldPos[2]};
@@ -21,7 +21,7 @@ index a74a2dc583..d5d58af18a 100644
 +  }
 +}
 +
- //----------------------------------------------------------------------------
+ //------------------------------------------------------------------------------
  // Renders an actor2D's property and then it's mapper.
  int vtkActor2D::RenderOverlay(vtkViewport* viewport)
  {
@@ -35,4 +35,4 @@ index a74a2dc583..d5d58af18a 100644
 +
    // Is the viewport's RenderWindow capturing GL2PS-special prop, and does this
    // actor represent text or mathtext?
-   if (vtkRenderer *renderer = vtkRenderer::SafeDownCast(viewport))
+   if (vtkRenderer* renderer = vtkRenderer::SafeDownCast(viewport))

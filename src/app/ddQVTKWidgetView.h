@@ -29,7 +29,7 @@ public:
 
   QList<double> lastTDxMotion() const;
 
-  QVTKOpenGLWidget* vtkWidget() const;
+  QVTKOpenGLStereoWidget* vtkWidget() const;
   vtkOrientationMarkerWidget* orientationMarkerWidget() const;
 
   QTimer* renderTimer() const;

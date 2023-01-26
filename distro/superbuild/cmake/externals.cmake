@@ -85,8 +85,14 @@ set(python_args
   -DPYTHON_INCLUDE_DIR:PATH=${PYTHON_INCLUDE_DIR}
   -DPYTHON_INCLUDE_DIR2:PATH=${PYTHON_INCLUDE_DIR} # required for cmake 2.8 on ubuntu 14.04
   -DPYTHON_LIBRARY:PATH=${PYTHON_LIBRARY}
+  -DPython3_EXECUTABLE:FILEPATH=${PYTHON_EXECUTABLE}
+  -DPython3_INCLUDE_DIR:PATH=${PYTHON_INCLUDE_DIR}
+  -DPython3_LIBRARY:PATH=${PYTHON_LIBRARY}
   )
 
+set(opengl_args
+  -DOpenGL_GL_PREFERENCE:STRING=GLVND
+)
 
 ###############################################################################
 # eigen
@@ -257,7 +263,7 @@ endif()
 if(DD_QT_VERSION EQUAL 4)
   set(PythonQt_TAG patched-6)
 else()
-  set(PythonQt_TAG support-python-gil) # 483095f
+  set(PythonQt_TAG patched-8-support-python-gil) # 554adf12
 endif()
 
 ExternalProject_Add(PythonQt
@@ -267,6 +273,7 @@ ExternalProject_Add(PythonQt
     ${default_cmake_args}
     ${qt_args}
     ${python_args}
+    ${opengl_args}
     -DPythonQt_Wrap_Qtcore:BOOL=ON
     -DPythonQt_Wrap_Qtgui:BOOL=ON
     -DPythonQt_Wrap_Qtuitools:BOOL=ON
@@ -382,28 +389,38 @@ elseif(USE_PRECOMPILED_VTK)
 
 else()
 
+  if(LINUX)
+    # enable headless rendering with egl
+    set(egl_args
+      -DVTK_OPENGL_HAS_EGL:BOOL=ON
+      -DVTK_MODULE_USE_EXTERNAL_VTK_glew:BOOL=ON
+    )
+  endif()
+
   ExternalProject_Add(vtk
     GIT_REPOSITORY https://github.com/kitware/vtk
-    GIT_TAG v8.2.0
+    GIT_TAG v9.2.2
     PATCH_COMMAND git apply
       ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkActor2D.cxx.patch
-      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/VTK-Compatibility-for-Python-3.8.patch
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkExtractEdges.cxx.patch
 
     CMAKE_CACHE_ARGS
       ${default_cmake_args}
       ${python_args}
       ${qt_args}
+      ${egl_args}
+      ${opengl_args}
       -DBUILD_TESTING:BOOL=OFF
       -DBUILD_EXAMPLES:BOOL=OFF
-      -DVTK_RENDERING_BACKEND:STRING=OpenGL2
       -DVTK_QT_VERSION:STRING=${DD_QT_VERSION}
       -DVTK_PYTHON_VERSION:STRING=3
-      -DModule_vtkGUISupportQt:BOOL=ON
+      -DVTK_GROUP_ENABLE_Qt:BOOL=WANT
+      -DVTK_MODULE_ENABLE_VTK_GUISupportQtQuick:STRING=NO
       -DVTK_WRAP_PYTHON:BOOL=ON
       -DCMAKE_INSTALL_RPATH:STRING=${install_prefix}/lib
     )
 
-  set(vtk_args -DVTK_DIR:PATH=${install_prefix}/lib/cmake/vtk-8.2)
+  set(vtk_args -DVTK_DIR:PATH=${install_prefix}/lib/cmake/vtk-9.2)
   set(vtk_depends vtk)
 
 endif()
@@ -630,6 +647,7 @@ ExternalProject_Add(director
     ${boost_args}
     ${flann_args}
     ${vtk_args}
+    ${opengl_args}
     ${python_args}
     ${qt_args}
 

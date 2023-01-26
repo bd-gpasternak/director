@@ -1,0 +1,40 @@
+diff --git a/Filters/Core/vtkExtractEdges.cxx b/Filters/Core/vtkExtractEdges.cxx
+index 09e2691568..90e40c4c2a 100644
+--- a/Filters/Core/vtkExtractEdges.cxx
++++ b/Filters/Core/vtkExtractEdges.cxx
+@@ -333,7 +333,7 @@ struct ExtractDataSetEdges : public ExtractEdges
+ int NonLocatorExtraction(
+   vtkIdType numPts, vtkIdType numCells, vtkDataSet* input, vtkPolyData* output)
+ {
+-  vtkLog(INFO, "Executing edge extractor with original point numbering");
++  vtkLog(TRACE, "Executing edge extractor with original point numbering");
+ 
+   // Is the input a pointset?  In that case we can just reuse the input's
+   // points.
+@@ -394,7 +394,7 @@ int NonLocatorExtraction(
+     vtkSMPTools::For(0, numCells, extractDSE);
+   }
+ 
+-  vtkLog(INFO, "Created " << newLines->GetNumberOfCells() << " edges");
++  vtkLog(TRACE, "Created " << newLines->GetNumberOfCells() << " edges");
+ 
+   return 1;
+ }
+@@ -432,7 +432,7 @@ int vtkExtractEdges::RequestData(vtkInformation* vtkNotUsed(request),
+     return NonLocatorExtraction(numPts, numCells, input, output);
+   }
+ 
+-  vtkLog(INFO, "Executing edge extractor: points are renumbered");
++  vtkLog(TRACE, "Executing edge extractor: points are renumbered");
+ 
+   // Using a locator
+   vtkIdType cellNum, newId;
+@@ -548,7 +548,7 @@ int vtkExtractEdges::RequestData(vtkInformation* vtkNotUsed(request),
+     } // for all edges of cell
+   }   // for all cells
+ 
+-  vtkLog(INFO, "Created " << newLines->GetNumberOfCells() << " edges");
++  vtkLog(TRACE, "Created " << newLines->GetNumberOfCells() << " edges");
+ 
+   //  Update ourselves.
+   //
