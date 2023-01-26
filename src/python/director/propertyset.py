@@ -42,17 +42,25 @@ def fromQColor(propertyName, propertyValue):
 
 
 def toQProperty(propertyName, propertyValue):
-    if 'color' in propertyName.lower() and isinstance(propertyValue,
-                                                      (list, tuple)) and len(propertyValue) == 3:
-        return QtGui.QColor(propertyValue[0] * 255.0, propertyValue[1] * 255.0,
-                            propertyValue[2] * 255.0)
-    elif isinstance(propertyValue, np.float):
-        return float(propertyValue)
-    elif isinstance(propertyValue, (list, tuple, np.ndarray)) and len(propertyValue) and isinstance(
-            propertyValue[0], np.float):
-        return [float(x) for x in propertyValue]
+    '''This function applies necessary conversions to pass property values
+    into the Qt ddPropertiesPanel widget.  This converts numpy arrays to lists,
+    numpy floating and integer types to python float and int, and color 3-tuples
+    from the range 0.-1. to QColor(int 0-255).
+    '''
+    is_iterable = isinstance(propertyValue, (list, tuple, np.ndarray)) and len(propertyValue)
+    if is_iterable:
+        if 'color' in propertyName.lower() and len(propertyValue) == 3:
+            return QtGui.QColor(*[int(255 * x) for x in propertyValue])
+        if isinstance(propertyValue[0], np.integer):
+            return [int(x) for x in propertyValue]
+        if isinstance(propertyValue[0], np.floating):
+            return [float(x) for x in propertyValue]
     else:
-        return propertyValue
+        if isinstance(propertyValue, np.integer):
+            return int(propertyValue)
+        if isinstance(propertyValue, np.floating):
+            return float(propertyValue)
+    return propertyValue
 
 
 class PropertySet(object):
