@@ -1,10 +1,13 @@
 #!/bin/bash
-set -ex
+set -ex #Exit if even if one command fails
 
 scriptDir=$(cd $(dirname $0) && pwd)
+echo "*** Running script from directory: ${scriptDir} ***"
+
 
 install_patchelf()
 {
+  echo "***Installing patchelf in ${scriptDir} ***"
   cd $scriptDir
   wget http://nixos.org/releases/patchelf/patchelf-0.8/patchelf-0.8.tar.gz
   tar -zxf patchelf-0.8.tar.gz
@@ -16,41 +19,43 @@ install_patchelf()
 }
 
 packageDir=$scriptDir/$1
+echo "*** Package directory: ${packageDir} ***"
 patchelfExe=$scriptDir/patchelf-install/bin/patchelf
 
 if [ ! -f "$patchelfExe" ]; then
-  echo "Installing patchelf"
   install_patchelf
 fi
 
 if [ ! -d "$packageDir" ]; then
-  echo "Package dir not found: $packageDir"
+  echo "*** Package directory not found: ${packageDir} ***"
   exit 1
 fi
 
 if [ ! -f "$patchelfExe" ]; then
-  echo "patchelf not found: $patchelfExe"
+  echo "*** Patchelf not found: $patchelfExe ***"
   echo 1
 fi
 
 cd $packageDir
-
-
 # remove unused files
-echo "Removing unused files"
+echo "*** Removing unused files ***"
 rm -rf bin include plugins share lib/cmake lib/pkgconfig lib/*.a lib/python3*/site-packages/urdf_parser_py lib/vtk lib/vtk-9.2
 
 # remove pycache and symlinks
-find . -name __pycache__ | xargs rm -r
-#find . -type l | xargs rm
+echo "*** Removing pycache and symlinks ***"
+find . -name -print0 __pycache__ | xargs rm -rf
+find . -type -print0 l | xargs rm -f
 
 
 cd lib
+libDir=$(pwd)
+echo "*** Moving files in ${libDir} to python3*/site-packages/ ***"
 mv libvtkDRCFilters* libddApp* libctkPythonConsole* libPythonQt* libQtPropertyBrowser* python3*/site-packages/director/
 mv libvtk* python3*/site-packages/vtkmodules/
 
 cd python3*/site-packages
-
+sitePkgDir=$(pwd)
+echo "*** Creating vtk dir in ${sitePkgDir} and copying vtk.py as __init__.py ***"
 mkdir vtk
 mv vtk.py vtk/__init__.py
 

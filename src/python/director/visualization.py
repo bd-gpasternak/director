@@ -1753,8 +1753,8 @@ def showQLabelImage(filename):
 
 
 def getMatplotLibColorMapNames():
-    from matplotlib import cm
-    names = [name for name in cm.cmap_d.keys() if not name.endswith('_r')]
+    import matplotlib as mpl
+    names = [name for name in  mpl.colormaps if not name.endswith('_r')]
     return sorted(names, key=lambda x: x.lower())
 
 
@@ -1762,8 +1762,8 @@ def getMatplotLibColorMapNames():
 # add alpha mapping too
 @functools.lru_cache()
 def getColorMap(name, scalarRange, reverse=False, discretize=0):
-    from matplotlib import cm
-    colorMap = cm.cmap_d[name]
+    import matplotlib as mpl
+    colorMap = mpl.colormaps[name]
     if discretize:
         f = vtk.vtkDiscretizableColorTransferFunction()
         f.DiscretizeOn()
