@@ -95,7 +95,7 @@ class ValueSlider(object):
             self.pause()
         else:
             self.play()
-        
+
     def togglePlayReverse(self):
         isPlayingReverse = self.animationTimer.isActive() and self.animationRateTarget < 0
         self.setAnimationRate(-1 * np.abs(self.animationRateTarget))
@@ -157,7 +157,7 @@ class ValueSlider(object):
 
     def _syncSlider(self):
         with qtutils.BlockSignals(self.slider):
-            self.slider.value = self.slider.maximum * (self._value - self.minValue) / float(self.maxValue - self.minValue)
+            self.slider.value = self.slider.maximum * float(self._value - self.minValue) / float(self.maxValue - self.minValue)
 
     def _syncSpinBox(self):
         with qtutils.BlockSignals(self.spinbox):
