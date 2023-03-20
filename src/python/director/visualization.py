@@ -7,6 +7,7 @@ from director import filterUtils
 from director import transformUtils
 from director import callbacks
 from director import frameupdater
+from director import visualization as vis
 from director.fieldcontainer import FieldContainer
 from PythonQt import QtCore, QtGui
 import PythonQt
@@ -1696,9 +1697,11 @@ def findPickedObject(displayPoint, view):
 
 
 def findFrameRepresentations(view):
-    props = view.renderer().GetViewProps()
-    props = [props.GetItemAsObject(i) for i in range(props.GetNumberOfItems())]
-    return [p for p in props if isinstance(p, vtk.vtkFrameWidgetRepresentation)]
+    props = []
+    for obj in om.getObjects():
+        if isinstance(obj, vis.FrameItem) and obj.rep is not None:
+            props.append(obj.rep)
+    return props
 
 
 def updateFramePickTolerances(view, tolerance=None):
