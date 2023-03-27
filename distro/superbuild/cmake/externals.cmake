@@ -108,10 +108,6 @@ ExternalProject_Add(
     ${qt_args}
 )
 
-ExternalProject_Add_Step(eigen make_pkgconfig_dir
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${install_prefix}/lib/pkgconfig
-  DEPENDERS configure)
-
 set(eigen_args
   -DEIGEN_INCLUDE_DIR:PATH=${install_prefix}/include/eigen3
   -DEIGEN_INCLUDE_DIRS:PATH=${install_prefix}/include/eigen3
