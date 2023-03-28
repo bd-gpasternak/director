@@ -43,8 +43,8 @@ rm -rf bin include plugins share lib/cmake lib/pkgconfig lib/*.a lib/python3*/si
 
 # remove pycache and symlinks
 echo "*** Removing pycache and symlinks ***"
-find . -name -print0 __pycache__ | xargs rm -rf
-find . -type -print0 l | xargs rm -f
+find . -name __pycache__ -print0 | xargs -0 rm -rf
+find . -type l -print0 | xargs -0 rm -f
 
 
 cd lib
