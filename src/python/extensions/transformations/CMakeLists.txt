@@ -1,6 +1,8 @@
 include_directories(${PYTHON_INCLUDE_DIR})
 
 find_package (Python3 COMPONENTS Interpreter Development NumPy)
+find_package (Python COMPONENTS NumPy)
+
 if (NOT Python_NumPy_FOUND)
   message(WARNING "Optimized transformations C extension module is disabled because numpy is not found.")
   return()
@@ -12,7 +14,7 @@ if (Python_NumPy_VERSION VERSION_LESS 1.7)
 endif()
 
 
-include_directories(${NUMPY_INCLUDE_DIRS})
+include_directories(${Python_NumPy_INCLUDE_DIRS})
 
 add_library(_transformations SHARED transformations.c)
 target_link_libraries(_transformations ${PYTHON_LIBRARIES})
