@@ -1,6 +1,5 @@
 include_directories(${PYTHON_INCLUDE_DIR})
 
-find_package (Python3 COMPONENTS Interpreter Development NumPy)
 find_package (Python COMPONENTS NumPy)
 
 if (NOT Python_NumPy_FOUND)
