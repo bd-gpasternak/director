@@ -1,12 +1,12 @@
 include_directories(${PYTHON_INCLUDE_DIR})
 
 find_package (Python3 COMPONENTS Interpreter Development NumPy)
-if (NOT NUMPY_FOUND)
+if (NOT Python_NumPy_FOUND)
   message(WARNING "Optimized transformations C extension module is disabled because numpy is not found.")
   return()
 endif()
 
-if (NUMPY_VERSION VERSION_LESS 1.7)
+if (Python_NumPy_VERSION VERSION_LESS 1.7)
   message(WARNING "Optimized transformations C extension module is disabled because numpy version < 1.7 was found.")
   return()
 endif()
