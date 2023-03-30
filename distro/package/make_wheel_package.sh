@@ -44,7 +44,8 @@ rm -rf bin include plugins share lib/cmake lib/pkgconfig lib/*.a lib/python3*/si
 # remove pycache and symlinks
 echo "*** Removing pycache and symlinks ***"
 find . -name __pycache__ -print0 | xargs -0 rm -rf
-find . -type l -print0 | xargs -0 rm -f
+# Disabling removal of symlinks since this leaves lib*.so.9.2.2 in vtkmodules may cause issues
+# find . -type l -print0 | xargs -0 rm -f
 
 
 cd lib
