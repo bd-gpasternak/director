@@ -28,7 +28,7 @@ the greater MIT DRC codebase.
 System Requirements
 -------------------
 
-As of this writing, the software is tested on Ubuntu 14.04 and 16.04, and MacOSX 10.11.
+As of this writing, the software is tested on Ubuntu 18.04 and 22.04, and MacOSX 10.11.
 The build should work on Microsoft Windows with MSVC but it is not continuously tested.
 In theory it can run on any platform where VTK and Qt are supported.
 
@@ -63,11 +63,11 @@ Required Dependencies
 
 The required 3rd party dependencies are:
 
-  - Qt4 or Qt5 (Qt 4.8.7 recommended)
-  - VTK 6.2+ (VTK 7.1.1 recommended)
-  - Python 3.4+ and NumPy
+  - Qt5 (Qt 5.9.5 recommended)
+  - VTK 9.2+ (VTK 9.2.2 recommended)
+  - Python 3.10+ and NumPy
 
-Additionally, you will need CMake 2.8 or greater to configure the source code.
+Additionally, you will need CMake 2.8 (3.23.1 recommend) or greater to configure the source code.
 
 The dependencies can be installed on Mac using `Homebrew <http://brew.sh/>`_:
 
