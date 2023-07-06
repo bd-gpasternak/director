@@ -1,5 +1,4 @@
 include_directories(${PYTHON_INCLUDE_DIR})
-# include_directories(${PYTHON_LIBRARY})
 
 find_package (Python COMPONENTS NumPy)
 find_package (PythonLibs REQUIRED)
