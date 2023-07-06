@@ -1,6 +1,8 @@
 include_directories(${PYTHON_INCLUDE_DIR})
+# include_directories(${PYTHON_LIBRARY})
 
 find_package (Python COMPONENTS NumPy)
+find_package (PythonLibs REQUIRED)
 
 if (NOT Python_NumPy_FOUND)
   message(WARNING "Optimized transformations C extension module is disabled because numpy is not found.")
