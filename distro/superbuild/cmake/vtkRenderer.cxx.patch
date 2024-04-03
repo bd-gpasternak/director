@@ -1,8 +1,8 @@
 diff --git a/Rendering/Core/vtkRenderer.cxx b/Rendering/Core/vtkRenderer.cxx
-index e405e9f012..16dd501b0e 100644
+index e405e9f012..badebf0c88 100644
 --- a/Rendering/Core/vtkRenderer.cxx
 +++ b/Rendering/Core/vtkRenderer.cxx
-@@ -1271,41 +1271,46 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
+@@ -1271,41 +1271,50 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
      range[0] -= minGap / 2.0;
    }
  
@@ -72,6 +72,10 @@ index e405e9f012..16dd501b0e 100644
 +    {
 +      range[0] = this->NearClippingPlaneTolerance * range[1];
 +    }
++  } else {
++    // Give ourselves a little breathing room
++    range[0] = 0.99 * range[0] - (range[1] - range[0]) * this->ClippingRangeExpansion;
++    range[1] = 1.01 * range[1] + (range[1] - range[0]) * this->ClippingRangeExpansion;
    }
  
    this->ActiveCamera->SetClippingRange(range);
