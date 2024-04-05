@@ -1,81 +1,29 @@
 diff --git a/Rendering/Core/vtkRenderer.cxx b/Rendering/Core/vtkRenderer.cxx
-index e405e9f012..badebf0c88 100644
+index e405e9f012..155343626c 100644
 --- a/Rendering/Core/vtkRenderer.cxx
 +++ b/Rendering/Core/vtkRenderer.cxx
-@@ -1271,41 +1271,50 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
+@@ -1271,6 +1271,12 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
      range[0] -= minGap / 2.0;
    }
  
--  // Do not let the range behind the camera throw off the calculation.
--  if (range[0] < 0.0)
-+  // Do not modify the bounds when using parallel projection!
++  // Do not modify the near range bounds based on the far range extent in
++  // parallel mode. Otherwise, parallel projections will clip on the near
++  // plane.
 +  if (!this->ActiveCamera->GetParallelProjection()) 
++  {
++
+   // Do not let the range behind the camera throw off the calculation.
+   if (range[0] < 0.0)
    {
--    range[0] = 0.0;
--  }
-+    
-+    // Do not let the range behind the camera throw off the calculation.
-+    if (range[0] < 0.0)
-+    {
-+      range[0] = 0.0;
-+    }
+@@ -1308,6 +1314,12 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
+     range[0] = this->NearClippingPlaneTolerance * range[1];
+   }
  
--  // Give ourselves a little breathing room
--  range[0] = 0.99 * range[0] - (range[1] - range[0]) * this->ClippingRangeExpansion;
--  range[1] = 1.01 * range[1] + (range[1] - range[0]) * this->ClippingRangeExpansion;
-+    // Give ourselves a little breathing room
-+    range[0] = 0.99 * range[0] - (range[1] - range[0]) * this->ClippingRangeExpansion;
-+    range[1] = 1.01 * range[1] + (range[1] - range[0]) * this->ClippingRangeExpansion;
- 
--  // Make sure near is not bigger than far
--  range[0] = (range[0] >= range[1]) ? (0.01 * range[1]) : (range[0]);
-+    // Make sure near is not bigger than far
-+    range[0] = (range[0] >= range[1]) ? (0.01 * range[1]) : (range[0]);
- 
--  // Make sure near is at least some fraction of far - this prevents near
--  // from being behind the camera or too close in front. How close is too
--  // close depends on the resolution of the depth buffer
--  if (!this->NearClippingPlaneTolerance)
--  {
--    this->NearClippingPlaneTolerance = 0.01;
--    if (this->RenderWindow)
-+    // Make sure near is at least some fraction of far - this prevents near
-+    // from being behind the camera or too close in front. How close is too
-+    // close depends on the resolution of the depth buffer
-+    if (!this->NearClippingPlaneTolerance)
-     {
--      int ZBufferDepth = this->RenderWindow->GetDepthBufferSize();
--      if (ZBufferDepth > 16)
-+      this->NearClippingPlaneTolerance = 0.01;
-+      if (this->RenderWindow)
-       {
--        this->NearClippingPlaneTolerance = 0.001;
-+        int ZBufferDepth = this->RenderWindow->GetDepthBufferSize();
-+        if (ZBufferDepth > 16)
-+        {
-+          this->NearClippingPlaneTolerance = 0.001;
-+        }
-       }
-     }
--  }
- 
--  // make sure the front clipping range is not too far from the far clippnig
--  // range, this is to make sure that the zbuffer resolution is effectively
--  // used
--  if (range[0] < this->NearClippingPlaneTolerance * range[1])
--  {
--    range[0] = this->NearClippingPlaneTolerance * range[1];
-+    // make sure the front clipping range is not too far from the far clipping
-+    // range, this is to make sure that the zbuffer resolution is effectively
-+    // used
-+    if (range[0] < this->NearClippingPlaneTolerance * range[1])
-+    {
-+      range[0] = this->NearClippingPlaneTolerance * range[1];
-+    }
 +  } else {
 +    // Give ourselves a little breathing room
 +    range[0] = 0.99 * range[0] - (range[1] - range[0]) * this->ClippingRangeExpansion;
 +    range[1] = 1.01 * range[1] + (range[1] - range[0]) * this->ClippingRangeExpansion;
-   }
- 
++  }
++
    this->ActiveCamera->SetClippingRange(range);
+ }
