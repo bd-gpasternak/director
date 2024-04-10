@@ -399,6 +399,7 @@ else()
     PATCH_COMMAND git apply
       ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkActor2D.cxx.patch
       ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkExtractEdges.cxx.patch
+      ${CMAKE_CURRENT_SOURCE_DIR}/cmake/vtkRenderer.cxx.patch
 
     CMAKE_CACHE_ARGS
       ${default_cmake_args}
