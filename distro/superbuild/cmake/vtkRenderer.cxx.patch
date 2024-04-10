@@ -1,21 +1,20 @@
 diff --git a/Rendering/Core/vtkRenderer.cxx b/Rendering/Core/vtkRenderer.cxx
-index e405e9f012..155343626c 100644
+index e405e9f012..4029aba463 100644
 --- a/Rendering/Core/vtkRenderer.cxx
 +++ b/Rendering/Core/vtkRenderer.cxx
-@@ -1271,6 +1271,12 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
+@@ -1271,6 +1271,11 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
      range[0] -= minGap / 2.0;
    }
  
-+  // Do not modify the near range bounds based on the far range extent in
-+  // parallel mode. Otherwise, parallel projections will clip on the near
++  // Do not modify the near range bounds based on the far range extent in 
++  // parallel mode. Otherwise, parallel projections will clip on the near 
 +  // plane.
-+  if (!this->ActiveCamera->GetParallelProjection()) 
-+  {
++  if (!this->ActiveCamera->GetParallelProjection()) {
 +
    // Do not let the range behind the camera throw off the calculation.
    if (range[0] < 0.0)
    {
-@@ -1308,6 +1314,12 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
+@@ -1308,6 +1313,12 @@ void vtkRenderer::ResetCameraClippingRange(const double bounds[6])
      range[0] = this->NearClippingPlaneTolerance * range[1];
    }
  
@@ -27,3 +26,4 @@ index e405e9f012..155343626c 100644
 +
    this->ActiveCamera->SetClippingRange(range);
  }
+ 
