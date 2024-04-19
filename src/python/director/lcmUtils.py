@@ -7,7 +7,7 @@ import socket
 import os
 import subprocess
 import tempfile
-import imp
+import importlib
 import sys
 import re
 
@@ -410,7 +410,10 @@ class HistoricalLCMLoader(object):
             build_dir = os.path.join(self.build_dir, sha)
             path = sys.path[:]
             sys.path.insert(0, build_dir)
-            module = imp.load_source(type_name, build_file)
+            loader = importlib.machinery.SourceFileLoader(type_name, build_file)
+            spec = importlib.util.spec_from_loader(loader.name, loader)
+            module = importlib.util.module_from_spec(spec)
+            loader.exec_module(module)
             sys.path = path
             self.type_cache[(type_name, sha)] = module.__dict__[type_name]
 

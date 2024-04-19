@@ -12,7 +12,6 @@ import PythonQt
 import json
 from PythonQt import QtCore, QtGui
 from time import time
-import imp
 import director.applogic as app
 from director import drcargs
 from director import vtkAll as vtk
