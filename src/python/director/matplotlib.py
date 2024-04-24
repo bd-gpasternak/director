@@ -9,7 +9,9 @@ from matplotlib.figure import Figure
 
 import warnings
 import matplotlib.cbook
-warnings.filterwarnings("ignore",category=matplotlib.cbook.mplDeprecation)
+
+warnings.filterwarnings("ignore",
+                        category=matplotlib.MatplotlibDeprecationWarning)
 
 
 class PlotWidget(QtWidgets.QWidget):

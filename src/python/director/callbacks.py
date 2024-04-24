@@ -98,7 +98,7 @@ class CallbackRegistry:
                 return
 
     def process(self, s, *args, **kwargs):
-        """
+        r"""
         process signal *s*.  All of the functions registered to receive
         callbacks on *s* will be called with *\*args* and *\*\*kwargs*
         """
