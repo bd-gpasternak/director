@@ -105,7 +105,7 @@ class DebugData(object):
         if headLength is None:
             headLength = headRadius
         normal = np.array(end) - np.array(start)
-        if np.linalg.norm(normal) != 0:
+        if np.linalg.norm(normal) >= 1e-6:
             normal = normal / np.linalg.norm(normal)
             if startHead:
                 start = np.array(start) + headLength * normal
