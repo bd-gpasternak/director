@@ -101,10 +101,11 @@ class DebugData(object):
 
     def addArrow(self, start, end, headRadius=0.05, headLength=None, tubeRadius=0.01,
                  color=[1, 1, 1], startHead=False, endHead=True):
-        if (start != end).all():
-            if headLength is None:
-                headLength = headRadius
-            normal = np.array(end) - np.array(start)
+
+        if headLength is None:
+            headLength = headRadius
+        normal = np.array(end) - np.array(start)
+        if np.linalg.norm(normal) != 0:
             normal = normal / np.linalg.norm(normal)
             if startHead:
                 start = np.array(start) + headLength * normal
