@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -194,6 +195,74 @@ def _dri_device_args() -> list[str]:
     return args
 
 
+def _docker_supports_gpus_flag() -> bool:
+    # Docker's native --gpus flag requires the NVIDIA container runtime/toolkit installed on the host.
+    # We feature-detect via help text to avoid hard failing on older/alternative docker installs.
+    cp = subprocess.run(["docker", "run", "--help"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    return "--gpus" in (cp.stdout or "")
+
+
+def _docker_has_nvidia_runtime() -> bool:
+    # With the NVIDIA Container Toolkit configured, Docker will report an "nvidia" runtime.
+    # This is a fast, non-invasive check to avoid breaking `--gpu auto` on hosts without it.
+    cp = subprocess.run(
+        ["docker", "info", "--format", "{{json .Runtimes}}"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    if cp.returncode != 0:
+        return False
+    try:
+        runtimes = json.loads(cp.stdout or "{}")
+    except json.JSONDecodeError:
+        return False
+    return isinstance(runtimes, dict) and ("nvidia" in runtimes)
+
+
+def _host_has_nvidia_gpu() -> bool:
+    # Best-effort host detection. If the host has NVIDIA drivers installed, nvidia-smi is typically available.
+    if shutil.which("nvidia-smi") is None:
+        return False
+    cp = subprocess.run(
+        ["nvidia-smi", "-L"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return cp.returncode == 0
+
+
+def _nvidia_container_toolkit_install_url() -> str:
+    # Official NVIDIA docs (keep as a stable deep link).
+    return "https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html"
+
+
+def _nvidia_gpu_docker_error_message() -> str:
+    return "\n".join(
+        [
+            "NVIDIA GPU detected/requested, but Docker could not enable GPU support for this container.",
+            "",
+            "To proceed without GPUs, rerun with: --gpu none",
+            "To enable NVIDIA GPUs in Docker, install/configure the NVIDIA Container Toolkit:",
+            f"  {_nvidia_container_toolkit_install_url()}",
+        ]
+    )
+
+
+def _probe_docker_gpus_work(image_full: str) -> bool:
+    # Some hosts accept `--gpus all` but still fail at runtime with:
+    #   could not select device driver "" with capabilities: [[gpu]]
+    # Do a quick preflight to fail fast with actionable guidance.
+    cp = subprocess.run(
+        ["docker", "run", "--rm", "--gpus", "all", "--entrypoint", "true", image_full],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    return cp.returncode == 0
+
+
 def _map_groups_env_for_dri() -> str:
     # We pass pairs like: "render:992,video:44"
     pairs: list[str] = []
@@ -321,6 +390,7 @@ def cmd_run(args: argparse.Namespace) -> None:
     gl_mode = args.gl
     persist = args.session
     clean_volume = args.clean_volume
+    gpu_mode = args.gpu
 
     work_dir = args.work_dir
     if not work_dir.startswith("/"):
@@ -347,6 +417,24 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     base_run_args: list[str] = ["docker", "run"]
 
+    # GPU support (NVIDIA) - enabled by default in auto mode.
+    enable_nvidia = False
+    if gpu_mode == "nvidia":
+        enable_nvidia = True
+    elif gpu_mode == "auto":
+        enable_nvidia = _host_has_nvidia_gpu()
+    elif gpu_mode == "none":
+        enable_nvidia = False
+    else:
+        raise ValueError(f"Unknown gpu mode: {gpu_mode}")
+
+    if enable_nvidia:
+        _require_local_image(image.full)
+        if not _docker_supports_gpus_flag() or not _docker_has_nvidia_runtime():
+            raise SystemExit(_nvidia_gpu_docker_error_message())
+        if not _probe_docker_gpus_work(image.full):
+            raise SystemExit(_nvidia_gpu_docker_error_message())
+
     base_run_args += ["--volume", f"{vol_name}:{container_home}"]
     base_run_args += ["--volume", f"{str(_repo_root())}:{work_dir}"]
     base_run_args += ["--workdir", work_dir]
@@ -357,6 +445,14 @@ def cmd_run(args: argparse.Namespace) -> None:
         "QT_X11_NO_MITSHM": "1",
         **_gl_env(gl_mode),
     }
+
+    if enable_nvidia:
+        # These env vars are recognized by the NVIDIA container runtime.
+        # They are harmless if the runtime is present and ensure graphics + compute capabilities are exposed.
+        env |= {
+            "NVIDIA_VISIBLE_DEVICES": "all",
+            "NVIDIA_DRIVER_CAPABILITIES": "all",
+        }
 
     xauth: Path | None = None
     if enable_x11:
@@ -375,6 +471,9 @@ def cmd_run(args: argparse.Namespace) -> None:
 
     if gl_mode == "dri":
         base_run_args += _dri_device_args()
+
+    if enable_nvidia:
+        base_run_args += ["--gpus", "all"]
 
     command = list(args.command)
     if command and command[0] == "--":
@@ -548,6 +647,12 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["dri", "software", "indirect"],
         default="dri",
         help="OpenGL mode: dri (default), software, or indirect",
+    )
+    p_run.add_argument(
+        "--gpu",
+        choices=["auto", "none", "nvidia"],
+        default="auto",
+        help="GPU mode: auto (default), none, or nvidia (force-enable NVIDIA --gpus all)",
     )
     p_run.add_argument("command", nargs=argparse.REMAINDER, help="Command to run (default: bash)")
     p_run.set_defaults(func=cmd_run)

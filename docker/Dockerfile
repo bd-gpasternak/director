@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   xvfb \
   curl \
   ca-certificates \
+  libglvnd0 \
   libgl1-mesa-dri \
   libglx-mesa0 \
   libegl1 \

@@ -16,6 +16,7 @@ steps:
     key: "docker-docs"
     depends_on: "docker-test"
     timeout_in_minutes: 10
+    skip: true
     command: |
       docker/run_docker_docs.sh
     artifact_paths:
@@ -24,7 +25,7 @@ steps:
   - label: "🚀 Trigger GitHub Deploy"
     key: "trigger-github-deploy"
     depends_on: "docker-docs"
-    skip: false
+    skip: true
     secrets:
       - GH_ACTIONS_TOKEN
     env:
