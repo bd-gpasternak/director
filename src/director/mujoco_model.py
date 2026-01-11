@@ -448,17 +448,18 @@ def forward_kinematics(model, data, qpos):
     # Forward kinematics
     mujoco.mj_forward(model, data)
 
-    # Build mapping of body name to 4x4 matrix
+    return compute_body_poses(model, data), compute_site_poses(model, data)
+
+
+def compute_body_poses(model, data):
     body_poses = {}
 
     for body_id in range(model.nbody):
         body_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_BODY, body_id)
         body_name = body_name or f"body_{body_id}"
 
-        # Get position and quaternion from MuJoCo
         pos = data.xpos[body_id]
         rot_matrix = data.xmat[body_id].reshape(3, 3)
-
         transform_matrix = np.eye(4)
         transform_matrix[:3, :3] = rot_matrix
         transform_matrix[:3, 3] = pos
@@ -466,6 +467,24 @@ def forward_kinematics(model, data, qpos):
         body_poses[body_name] = transform_matrix
 
     return body_poses
+
+
+def compute_site_poses(model, data):
+    site_poses = {}
+
+    for site_id in range(model.nsite):
+        site_name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_SITE, site_id)
+        site_name = site_name or f"site_{site_id}"
+
+        pos = data.site_xpos[site_id]
+        rot_matrix = data.site_xmat[site_id].reshape(3, 3)
+        transform_matrix = np.eye(4)
+        transform_matrix[:3, :3] = rot_matrix
+        transform_matrix[:3, 3] = pos
+
+        site_poses[site_name] = transform_matrix
+
+    return site_poses
 
 
 def get_geom_pose_in_body(model, geom_id):
@@ -913,6 +932,7 @@ class KinematicsUpdater:
         self.pending_q_dict = {}
         self.pending_world_T_base = None
         self.body_poses = {}
+        self.site_poses = {}
         self.reset()
 
     def reset(self):
@@ -921,6 +941,7 @@ class KinematicsUpdater:
         self.q_dict = dict[Any, Any](zip(self.dof_names, np.zeros(len(self.dof_names))))
         self.world_T_base = np.eye(4)
         self.body_poses = {}
+        self.site_poses = {}
 
     def push_q_dict(self, q_dict: dict[str, float]):
         self.pending_q_dict.update(q_dict)
@@ -937,8 +958,9 @@ class KinematicsUpdater:
                 self.world_T_base = self.pending_world_T_base
             self.pending_q_dict = {}
             self.pending_world_T_base = None
-            body_poses = self.model.show_forward_kinematics(self.q_dict, self.world_T_base, name_or_folder)
+            body_poses, site_poses = self.model.show_forward_kinematics(self.q_dict, self.world_T_base, name_or_folder)
             self.body_poses = body_poses
+            self.site_poses = site_poses
 
 
 class MujocoRobotModel:
@@ -1130,17 +1152,45 @@ class MujocoRobotModel:
                 raise ValueError(f"world_T_base must be a 4x4 matrix, got shape {world_T_base.shape}")
 
         # Perform forward kinematics (returns base_T_body transforms)
-        base_T_body_poses = forward_kinematics(self.model, self.data, q)
+        base_T_body_poses, base_T_site_poses = forward_kinematics(self.model, self.data, q)
 
-        # Transform base_T_body to world_T_body by multiplying with world_T_base
-        body_poses = {}
-        for body_name, base_T_body in base_T_body_poses.items():
-            world_T_body = world_T_base @ base_T_body
-            body_poses[body_name] = world_T_body
+        if np.array_equal(world_T_base, np.eye(4)):
+            body_poses = base_T_body_poses
+            site_poses = base_T_site_poses
+        else:
+            body_poses = {}
+            for body_name, base_T_body in base_T_body_poses.items():
+                world_T_body = world_T_base @ base_T_body
+                body_poses[body_name] = world_T_body
+
+            site_poses = {}
+            for site_name, base_T_site in base_T_site_poses.items():
+                world_T_site = world_T_base @ base_T_site
+                site_poses[site_name] = world_T_site
 
         # Apply body poses to geom items
         self._update_body_frames(body_poses, model_folder)
-        return body_poses
+        model_folder.site_poses = site_poses
+        model_folder.body_poses = body_poses
+        return body_poses, site_poses
+
+    def get_site_names(self) -> list[str]:
+        return [mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_SITE, i) for i in range(self.model.nsite)]
+
+    def get_site_body_name(self, site_name: str) -> str:
+        site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+        parent_body_id = self.model.site_bodyid[site_id]
+        return mujoco.mj_id2name(self.model, mujoco.mjtObj.mjOBJ_BODY, parent_body_id)
+
+    def get_body_T_site(self, site_name: str) -> np.ndarray:
+        site_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_SITE, site_name)
+        pos = self.model.site_pos[site_id]
+        rot_matrix_3x3 = self.model.site_mat[site_id].reshape(3, 3)
+
+        body_T_site = np.eye(4)
+        body_T_site[:3, :3] = rot_matrix_3x3
+        body_T_site[:3, 3] = pos
+        return body_T_site
 
     def _update_body_frames(self, body_poses, model_folder):
         vtk_frames = {body_name: mj_matrix_to_vtk_transform(body_pose) for body_name, body_pose in body_poses.items()}
