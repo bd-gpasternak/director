@@ -8,6 +8,7 @@ import director.applogic as app
 import director.objectmodel as om
 import director.vtkAll as vtk
 from director import callbacks, filterUtils
+from director.debugVis import DebugData
 from director.fieldcontainer import FieldContainer
 from director.frame_properties import FrameProperties
 from director.frame_sync import FrameSync
@@ -1388,6 +1389,142 @@ def mapMousePosition(widget, mouseEvent):
     """
     mousePosition = mouseEvent.pos()
     return mousePosition.x(), widget.height() - mousePosition.y()
+
+
+class SphereItem(PolyDataItem):
+    def __init__(self, name, view=None):
+        super().__init__(name, vtk.vtkPolyData(), view)
+        self.addProperty(
+            "Radius",
+            0.05,
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.properties.setPropertyIndex("Radius", 0)
+        self._update_geometry()
+
+    def _update_geometry(self) -> None:
+        d = DebugData()
+        d.addSphere(center=[0, 0, 0], radius=float(self.getProperty("Radius")))
+        self.setPolyData(d.getPolyData())
+
+    def _onPropertyChanged(self, propertySet, propertyName):
+        PolyDataItem._onPropertyChanged(self, propertySet, propertyName)
+        if propertyName == "Radius":
+            self._update_geometry()
+
+
+class EllipsoidItem(PolyDataItem):
+    def __init__(self, name, view=None):
+        super().__init__(name, vtk.vtkPolyData(), view)
+        self.addProperty(
+            "Radii",
+            [0.15, 0.1, 0.05],
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.properties.setPropertyIndex("Radii", 0)
+        self._update_geometry()
+
+    def _update_geometry(self) -> None:
+        radii = self.getProperty("Radii")
+        d = DebugData()
+        d.addEllipsoid(center=[0, 0, 0], radii=radii)
+        self.setPolyData(d.getPolyData())
+
+    def _onPropertyChanged(self, propertySet, propertyName):
+        PolyDataItem._onPropertyChanged(self, propertySet, propertyName)
+        if propertyName == "Radii":
+            self._update_geometry()
+
+
+class CapsuleItem(PolyDataItem):
+    def __init__(self, name, view=None):
+        super().__init__(name, vtk.vtkPolyData(), view)
+        self.addProperty(
+            "Radius",
+            0.02,
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.addProperty(
+            "Length",
+            0.10,
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.properties.setPropertyIndex("Radius", 0)
+        self.properties.setPropertyIndex("Length", 1)
+        self._update_geometry()
+
+    def _update_geometry(self) -> None:
+        d = DebugData()
+        d.addCapsule(
+            center=[0, 0, 0],
+            axis=[0, 0, 1],
+            length=float(self.getProperty("Length")),
+            radius=float(self.getProperty("Radius")),
+        )
+        self.setPolyData(d.getPolyData())
+
+    def _onPropertyChanged(self, propertySet, propertyName):
+        PolyDataItem._onPropertyChanged(self, propertySet, propertyName)
+        if propertyName in {"Radius", "Length"}:
+            self._update_geometry()
+
+
+class BoxItem(PolyDataItem):
+    def __init__(self, name, view=None):
+        super().__init__(name, vtk.vtkPolyData(), view)
+        self.addProperty(
+            "Dimensions",
+            [0.05, 0.05, 0.05],
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.properties.setPropertyIndex("Dimensions", 0)
+        self._update_geometry()
+
+    def _update_geometry(self) -> None:
+        dims = self.getProperty("Dimensions")
+        if not (isinstance(dims, (list, tuple)) and len(dims) == 3):
+            dims = [0.05, 0.05, 0.05]
+        d = DebugData()
+        d.addCube(dimensions=dims, center=[0, 0, 0])
+        self.setPolyData(d.getPolyData())
+
+    def _onPropertyChanged(self, propertySet, propertyName):
+        PolyDataItem._onPropertyChanged(self, propertySet, propertyName)
+        if propertyName == "Dimensions":
+            self._update_geometry()
+
+
+class CylinderItem(PolyDataItem):
+    def __init__(self, name, view=None):
+        super().__init__(name, vtk.vtkPolyData(), view)
+        self.addProperty(
+            "Radius",
+            0.02,
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.addProperty(
+            "Length",
+            0.10,
+            attributes=om.PropertyAttributes(decimals=4, minimum=0.0, maximum=10.0, singleStep=0.005, hidden=False),
+        )
+        self.properties.setPropertyIndex("Radius", 0)
+        self.properties.setPropertyIndex("Length", 1)
+        self._update_geometry()
+
+    def _update_geometry(self) -> None:
+        d = DebugData()
+        d.addCylinder(
+            center=[0, 0, 0],
+            axis=[0, 0, 1],
+            length=float(self.getProperty("Length")),
+            radius=float(self.getProperty("Radius")),
+        )
+        self.setPolyData(d.getPolyData())
+
+    def _onPropertyChanged(self, propertySet, propertyName):
+        PolyDataItem._onPropertyChanged(self, propertySet, propertyName)
+        if propertyName in {"Radius", "Length"}:
+            self._update_geometry()
 
 
 class GridItem(PolyDataItem):
