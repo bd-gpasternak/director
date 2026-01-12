@@ -27,6 +27,7 @@ class MainWindowApp(object):
         self.settings = QtCore.QSettings()
         self.about_dict = {}
         self.shortcuts_dialog = None
+        self._saveWindowConnection = None
 
         self.fileMenu = self.mainWindow.menuBar().addMenu("&File")
         self.editMenu = self.mainWindow.menuBar().addMenu("&Edit")
@@ -289,10 +290,15 @@ class MainWindowApp(object):
     def restoreDefaultWindowState(self):
         self._restoreWindowState("MainWindowDefault")
 
+    def disableSaveWindowStateAtQuit(self):
+        if self._saveWindowConnection:
+            self._saveWindowConnection.disconnect()
+            self._saveWindowConnection = None
+
     def initWindowSettings(self):
         self._saveWindowState("MainWindowDefault")
         self._restoreWindowState("MainWindowCustom")
-        self.applicationInstance().aboutToQuit.connect(self._saveCustomWindowState)
+        self._saveWindowConnection = self.applicationInstance().aboutToQuit.connect(self._saveCustomWindowState)
 
 
 class MainWindowAppFactory(object):
