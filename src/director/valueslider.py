@@ -398,12 +398,12 @@ class MouseScrubber:
             return False
         if event.type() == QtCore.QEvent.Type.HoverMove:
             if self.movePos is None:
-                self.movePos = event.pos()
+                self.movePos = event.position().toPoint()
             if self.keyState.get(".") or event.modifiers() == QtCore.Qt.KeyboardModifier.AltModifier:
-                delta = event.pos() - self.movePos
+                delta = event.position().toPoint() - self.movePos
                 delta = delta.x()
                 self.slider.setValue(self.slider.value() + int(delta * self.slider.singleStep() * self.factor))
-            self.movePos = event.pos()
+            self.movePos = event.position().toPoint()
             return False
         if event.type() == QtCore.QEvent.Type.KeyPress:
             if not event.isAutoRepeat():
