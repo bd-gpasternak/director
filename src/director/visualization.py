@@ -2,6 +2,7 @@
 Visualization classes and utilities for displaying VTK objects in Director.
 """
 
+import functools
 import numpy as np
 
 import director.applogic as app
@@ -1984,3 +1985,31 @@ class ViewOptionsItem(om.ObjectModelItem):
                 self.view.renderWindow().GetInteractor().EnableRenderOff()
 
         self.view.render()
+
+
+# add alpha mapping too
+@functools.lru_cache()
+def getColorMap(name, scalarRange, reverse=False, discretize=0):
+    import matplotlib as mpl
+    colorMap = mpl.colormaps[name]
+    if discretize:
+        f = vtk.vtkDiscretizableColorTransferFunction()
+        f.DiscretizeOn()
+        f.SetNumberOfValues(discretize)
+    else:
+        f = vtk.vtkColorTransferFunction()
+    valueRange = scalarRange[1] - scalarRange[0]
+
+    # TODO
+    # for color lists
+    numberOfColors = 255
+    for i in range(numberOfColors + 1):
+        pvalue = i / (numberOfColors)
+        scalarValue = scalarRange[0] + pvalue * valueRange
+        if reverse:
+            color = colorMap(1.0 - pvalue)
+        else:
+            color = colorMap(pvalue)
+        f.AddRGBPoint(scalarValue, color[0], color[1], color[2])
+    f.Build()
+    return f
