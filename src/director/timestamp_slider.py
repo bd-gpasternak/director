@@ -174,9 +174,12 @@ class TimestampSlider:
         Args:
             main_window: QMainWindow instance to add shortcuts to
         """
+        self.remove_keyboard_shortcuts()
+
         # Space bar: toggle play/pause
         space_shortcut = QtGui.QShortcut(QtGui.QKeySequence("Space"), main_window)
         space_shortcut.activated.connect(self.slider.togglePlayPause)
+        self._shortcuts.append(space_shortcut)
 
         def on_skip(increment_s: float):
             # schedule the skip with a single shot timer to prevent keyboard events
@@ -200,3 +203,12 @@ class TimestampSlider:
                 shortcut = QtGui.QShortcut(QtGui.QKeySequence(f"{modifier}{direction}"), main_window)
                 increment = sign * self.properties.getProperty(property_name)
                 shortcut.activated.connect(lambda inc=increment: on_skip(inc))
+                self._shortcuts.append(shortcut)
+
+    def remove_keyboard_shortcuts(self):
+        """Remove keyboard shortcuts previously added to the main window."""
+        for shortcut in self._shortcuts:
+            shortcut.setEnabled(False)
+            shortcut.setParent(None)
+            shortcut.deleteLater()
+        self._shortcuts.clear()
