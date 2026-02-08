@@ -26,6 +26,7 @@ class PropertyAttributes(object):
         "hidden",
         "enumNames",
         "readOnly",
+        "docstring",
     )
 
     def __init__(self, **kwargs):
@@ -37,6 +38,7 @@ class PropertyAttributes(object):
             "hidden": False,
             "enumNames": None,
             "readOnly": False,
+            "docstring": "",
         }
         defaults.update(kwargs)
         for field in self._FIELDS:

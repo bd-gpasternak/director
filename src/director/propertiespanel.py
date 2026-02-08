@@ -849,6 +849,7 @@ class PropertiesPanel(QWidget):
         parent_item.setExpanded(True)
 
         item.setHidden(bool(attributes.hidden))
+        self._applyDocstringTooltip(item, self.itemToEditor.get(item), attributes)
 
     def _createEditor(self, propertyName, value, attributes):
         """Create an appropriate editor widget for a property."""
@@ -870,6 +871,17 @@ class PropertiesPanel(QWidget):
         else:
             # Fallback: string editor
             return StringEditor(self.propertySet, propertyName)
+
+    def _applyDocstringTooltip(self, item, editor, attributes):
+        """Apply docstring tooltip to item and editor widgets."""
+        docstring = ""
+        if attributes and getattr(attributes, "docstring", ""):
+            docstring = attributes.docstring
+
+        item.setToolTip(0, docstring)
+        item.setToolTip(1, docstring)
+        if editor and hasattr(editor, "setToolTip"):
+            editor.setToolTip(docstring)
 
     def _removeProperty(self, propertyName):
         """Remove a property from the tree."""
@@ -943,6 +955,11 @@ class PropertiesPanel(QWidget):
                     else:
                         # If not readOnly and previously swapped with a label, try to restore editor
                         self._onPropertyChanged(propertySet, propertyName)
+                return
+            elif attributeName == "docstring":
+                attributes = propertySet._attributes.get(propertyName)
+                editor = self.itemToEditor.get(item)
+                self._applyDocstringTooltip(item, editor, attributes)
                 return
 
             elif attributeName == "enumNames":

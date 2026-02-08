@@ -36,9 +36,21 @@ def main():
 
     # Enum properties (integer with enumNames attribute)
     props.addProperty(
-        "enum_choice", 0, attributes=PropertyAttributes(enumNames=["Option A", "Option B", "Option C", "Option D"])
+        "enum_choice",
+        0,
+        attributes=PropertyAttributes(
+            enumNames=["Option A", "Option B", "Option C", "Option D"],
+            docstring="Select an option from the list.",
+        ),
     )
-    props.addProperty("quality", 1, attributes=PropertyAttributes(enumNames=["Low", "Medium", "High", "Ultra"]))
+    props.addProperty(
+        "quality",
+        1,
+        attributes=PropertyAttributes(
+            enumNames=["Low", "Medium", "High", "Ultra"],
+            docstring="Quality setting used for rendering.",
+        ),
+    )
 
     # Arrays with attributes
     props.addProperty(
@@ -51,13 +63,13 @@ def main():
     props.addProperty("string list", ["first", "second", "third", "fourth"])
 
     # Basic properties
-    props.addProperty("bool", True)
-    props.addProperty("str", "value")
+    props.addProperty("bool", True, attributes=PropertyAttributes(docstring="Enable or disable the feature."))
+    props.addProperty("str", "value", attributes=PropertyAttributes(docstring="Free-form text value."))
     props.addProperty("color", [1.0, 0.5, 0.0])
 
     # Nested properties
-    props.addProperty("nest1/prop1", 42)
-    props.addProperty("nest1/prop2", "nested value")
+    props.addProperty("nest1/prop1", 42, attributes=PropertyAttributes(docstring="Nested integer property."))
+    props.addProperty("nest1/prop2", "nested value", attributes=PropertyAttributes(docstring="Nested string."))
     props.addProperty("nest1/enum_nested", 0, attributes=PropertyAttributes(enumNames=["First", "Second", "Third"]))
     props.addProperty("nest2/level1/prop3", 3.14)
     props.addProperty(
@@ -93,6 +105,7 @@ def main():
     print("  - Enum properties with enumNames (combo boxes)")
     print("  - Properties with sliders (when range <= 1000)")
     print("  - Nested properties with attributes")
+    print("  - Properties with docstring tooltips (hover the label/value)")
     print("")
     print("You can also edit properties programmatically in Python:")
     print("  props.double_precise = 3.14159")
