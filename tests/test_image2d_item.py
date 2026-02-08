@@ -29,7 +29,7 @@ def test_image2d_item_construction(qapp):
     assert item.getProperty("Visible") == True
     assert item.getProperty("Width") == 300
     assert item.getProperty("Height") == 300  # Square image, so height should match width
-    assert item.getProperty("Keep Aspect Ratio") == True
+    assert item.getProperty("Fixed Aspect Ratio") == True
     assert item.getProperty("Alpha") == 1.0
 
 
@@ -64,10 +64,10 @@ def test_image2d_item_properties(qapp):
     item.setProperty("Height", 200)
     assert item.getProperty("Height") == 200
 
-    # Test Keep Aspect Ratio property
-    assert item.getProperty("Keep Aspect Ratio") == True
-    item.setProperty("Keep Aspect Ratio", False)
-    assert item.getProperty("Keep Aspect Ratio") == False
+    # Test Fixed Aspect Ratio property
+    assert item.getProperty("Fixed Aspect Ratio") == True
+    item.setProperty("Fixed Aspect Ratio", False)
+    assert item.getProperty("Fixed Aspect Ratio") == False
 
 
 def test_image2d_item_set_image(qapp):
@@ -178,7 +178,7 @@ def test_image2d_item_height_for_width(qapp):
 
 
 def test_image2d_item_aspect_ratio_sync(qapp):
-    """Test that Width and Height sync when Keep Aspect Ratio is enabled."""
+    """Test that Width and Height sync when Fixed Aspect Ratio is enabled."""
     widget = VTKWidget()
 
     # Create a 2:1 aspect ratio image (wider than tall)
@@ -195,8 +195,8 @@ def test_image2d_item_aspect_ratio_sync(qapp):
     # Height should be 150 (300 / 2.0 aspect ratio)
     assert initial_height == 150
 
-    # With Keep Aspect Ratio enabled, changing width should update height
-    item.setProperty("Keep Aspect Ratio", True)
+    # With Fixed Aspect Ratio enabled, changing width should update height
+    item.setProperty("Fixed Aspect Ratio", True)
     item.setProperty("Width", 400)
     assert item.getProperty("Width") == 400
     # Height should be 200 (400 / 2.0 aspect ratio)
@@ -208,8 +208,8 @@ def test_image2d_item_aspect_ratio_sync(qapp):
     # Width should be 200 (100 * 2.0 aspect ratio)
     assert item.getProperty("Width") == 200
 
-    # With Keep Aspect Ratio disabled, changing width should NOT update height
-    item.setProperty("Keep Aspect Ratio", False)
+    # With Fixed Aspect Ratio disabled, changing width should NOT update height
+    item.setProperty("Fixed Aspect Ratio", False)
     item.setProperty("Width", 500)
     assert item.getProperty("Width") == 500
     # Height should remain unchanged

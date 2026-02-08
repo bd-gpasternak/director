@@ -82,7 +82,7 @@ def main():
     item1 = Image2DItem("gradient_image", image1, view)
     item1.setProperty("Anchor", 0)  # Top Left
     item1.setProperty("Width", 200)
-    item1.setProperty("Keep Aspect Ratio", True)  # Height will auto-update to 150
+    item1.setProperty("Fixed Aspect Ratio", True)  # Height will auto-update to 150
     item1.setProperty("Alpha", 0.9)
 
     # Image 2: Checkerboard pattern in top-right corner
@@ -90,7 +90,7 @@ def main():
     item2 = Image2DItem("checkerboard_image", image2, view)
     item2.setProperty("Anchor", 1)  # Top Right
     item2.setProperty("Width", 150)
-    item2.setProperty("Keep Aspect Ratio", True)  # Height will auto-update to 150 (square)
+    item2.setProperty("Fixed Aspect Ratio", True)  # Height will auto-update to 150 (square)
     item2.setProperty("Alpha", 0.8)
 
     # Image 3: Colorful pattern in bottom-left corner
@@ -98,7 +98,7 @@ def main():
     item3 = Image2DItem("color_image", image3, view)
     item3.setProperty("Anchor", 2)  # Bottom Left
     item3.setProperty("Width", 180)
-    item3.setProperty("Keep Aspect Ratio", True)  # Height will auto-update to 120
+    item3.setProperty("Fixed Aspect Ratio", True)  # Height will auto-update to 120
     item3.setProperty("Alpha", 0.85)
 
     # Add items to object model
@@ -117,13 +117,13 @@ def main():
     print("  - Adjust properties in the Properties Panel")
     print("  - Change Anchor position (Top Left, Top Right, Bottom Left, Bottom Right)")
     print("  - Adjust Width, Height, and Alpha")
-    print("  - Toggle 'Keep Aspect Ratio' to maintain image proportions")
+    print("  - Toggle 'Fixed Aspect Ratio' to maintain image proportions")
     print("  - Toggle Visible property")
     print("\nTry changing the properties:")
     print("  item1.setProperty('Anchor', 3)  # Move to bottom-right")
-    print("  item1.setProperty('Width', 300)  # Make it larger (Height auto-updates if Keep Aspect Ratio=True)")
-    print("  item1.setProperty('Height', 200)  # Change height (Width auto-updates if Keep Aspect Ratio=True)")
-    print("  item1.setProperty('Keep Aspect Ratio', False)  # Disable auto-update")
+    print("  item1.setProperty('Width', 300)  # Make it larger (Height auto-updates if Fixed Aspect Ratio=True)")
+    print("  item1.setProperty('Height', 200)  # Change height (Width auto-updates if Fixed Aspect Ratio=True)")
+    print("  item1.setProperty('Fixed Aspect Ratio', False)  # Disable auto-update")
     print("  item1.setProperty('Alpha', 0.5)  # Make it semi-transparent")
 
     # Start the application
