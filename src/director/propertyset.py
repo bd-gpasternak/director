@@ -1,4 +1,5 @@
 import copy
+import functools
 import re
 from collections import OrderedDict
 from typing import Any, Dict
@@ -6,6 +7,7 @@ from typing import Any, Dict
 from director import callbacks
 
 
+@functools.lru_cache(maxsize=100)
 def cleanPropertyName(s):
     """
     Generate a valid python property name by replacing all non-alphanumeric characters with underscores and adding an initial underscore if the first character is a digit
@@ -103,7 +105,12 @@ class PropertySet(object):
     def connectPropertyValueChanged(self, propertyName, func):
         def onPropertyChanged(propertySet, changedPropertyName):
             if changedPropertyName == propertyName:
-                func(propertySet.getProperty(propertyName))
+                attributes = self._attributes[propertyName]
+                if attributes.enumNames:
+                    value = propertySet.getPropertyEnumValue(propertyName)
+                else:
+                    value = propertySet.getProperty(propertyName)
+                func(value)
 
         return self.connectPropertyChanged(onPropertyChanged)
 
@@ -160,13 +167,12 @@ class PropertySet(object):
         self.callbacks.process(self.PROPERTY_ADDED_SIGNAL, self, propertyName)
 
     def setPropertyIndex(self, propertyName, newIndex):
-        assert self.hasProperty(propertyName)
-        currentIndex = list(self._properties.keys()).index(propertyName)
-        inds = list(range(len(self._properties)))
-        inds.remove(currentIndex)
-        inds.insert(newIndex, currentIndex)
+        assert propertyName in self._properties
+        assert 0 <= newIndex < len(self._properties)
+        value = self._properties.pop(propertyName)
         items = list(self._properties.items())
-        self._properties = OrderedDict([items[i] for i in inds])
+        items.insert(newIndex, (propertyName, value))
+        self._properties = OrderedDict(items)
 
     def setProperty(self, propertyName, propertyValue):
         previousValue = self._properties[propertyName]

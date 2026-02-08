@@ -10,7 +10,8 @@ def _max_length(strings):
     return max(len(s) for s in strings)
 
 
-def _fields_repr(self, indent=4):
+def _fields_repr(self, markers, indent=4):
+    markers[id(self)] = self
     indent_str = " " * indent
     field_names = list(self._fields)
     field_names.sort()
@@ -19,13 +20,15 @@ def _fields_repr(self, indent=4):
     s = type(self).__name__ + "(\n"
     for field in field_names:
         value = getattr(self, field)
-        value_repr = _repr(value, indent + 4)
+        value_repr = _repr(value, markers, indent + 4)
         s += "%s%s%s= %s,\n" % (indent_str, field, " " * (fill_length - len(field)), value_repr)
     s += "%s)" % indent_str
+    del markers[id(self)]
     return s
 
 
-def _dict_repr(self, indent=4):
+def _dict_repr(self, markers, indent=4):
+    markers[id(self)] = self
     indent_str = " " * indent
     field_names = list(self.keys())
     field_names.sort()
@@ -34,22 +37,26 @@ def _dict_repr(self, indent=4):
     s = "{\n"
     for field in field_names:
         value = self[field]
-        value_repr = _repr(value, indent + 4)
+        value_repr = _repr(value, markers, indent + 4)
         s += "%s'%s'%s: %s,\n" % (indent_str, field, " " * (fill_length - len(field) - 2), value_repr)
     s += "%s}" % indent_str
+    del markers[id(self)]
     return s
 
 
-def _list_repr(self, indent=4):
+def _list_repr(self, markers, indent=4):
+    markers[id(self)] = self
     indent_str = " " * indent
-    return (
+    s = (
         "[\n"
         + indent_str
-        + (",\n" + indent_str).join([_repr(item, indent + 4) for item in self])
+        + (",\n" + indent_str).join([_repr(item, markers, indent + 4) for item in self])
         + "\n"
         + indent_str
         + "]"
     )
+    del markers[id(self)]
+    return s
 
 
 def _transform_repr(mat, indent=4):
@@ -58,15 +65,19 @@ def _transform_repr(mat, indent=4):
     return "\n" + indent_str + repr(mat)
 
 
-def _repr(self, indent=4):
+def _repr(self, markers=None, indent=4):
+    if markers is None:
+        markers = {}
+    if id(self) in markers:
+        return f"<recursive reference to {type(self)}:{id(self)}>"
     if isinstance(self, FieldContainer):
-        return _fields_repr(self, indent)
+        return _fields_repr(self, markers, indent)
     if isinstance(self, vtk.vtkTransform):
         return _transform_repr(self, indent)
     if isinstance(self, dict):
-        return _dict_repr(self, indent)
+        return _dict_repr(self, markers, indent)
     if isinstance(self, list) and len(self) and not isinstance(self[0], (int, float)):
-        return _list_repr(self, indent)
+        return _list_repr(self, markers, indent)
     else:
         return repr(self)
 

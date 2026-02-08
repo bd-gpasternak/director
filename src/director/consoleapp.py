@@ -168,7 +168,7 @@ class ConsoleApp(object):
 
     @staticmethod
     def getTestingArgs(dataDirRequired=False, outputDirRequired=False):
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(add_help=False)
         argutils.add_standard_args(parser)
 
         # Note: --data-dir and --output-dir are already added by add_standard_args

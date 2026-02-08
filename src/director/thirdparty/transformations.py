@@ -197,9 +197,7 @@ import math
 
 import numpy
 
-__version__ = "2015.07.18"
-__docformat__ = "restructuredtext en"
-__all__ = ()
+__version__ = "2020.1.1"
 
 
 def identity_matrix():
@@ -1329,16 +1327,17 @@ def quaternion_from_matrix(matrix, isprecise=False):
             q[2] = M[0, 2] - M[2, 0]
             q[1] = M[2, 1] - M[1, 2]
         else:
-            i, j, k = 1, 2, 3
+            i, j, k = 0, 1, 2
             if M[1, 1] > M[0, 0]:
-                i, j, k = 2, 3, 1
+                i, j, k = 1, 2, 0
             if M[2, 2] > M[i, i]:
-                i, j, k = 3, 1, 2
+                i, j, k = 2, 0, 1
             t = M[i, i] - (M[j, j] + M[k, k]) + M[3, 3]
             q[i] = t
             q[j] = M[i, j] + M[j, i]
             q[k] = M[k, i] + M[i, k]
             q[3] = M[k, j] - M[j, k]
+            q = q[[3, 0, 1, 2]]
         q *= 0.5 / math.sqrt(t * M[3, 3])
     else:
         m00 = M[0, 0]
@@ -1459,7 +1458,7 @@ def quaternion_slerp(quat0, quat1, fraction, spin=0, shortestpath=True):
     q1 = unit_vector(quat1[:4])
     if fraction == 0.0:
         return q0
-    elif fraction == 1.0:
+    if fraction == 1.0:
         return q1
     d = numpy.dot(q0, q1)
     if abs(abs(d) - 1.0) < _EPS:
@@ -1708,7 +1707,7 @@ _AXES2TUPLE = {
     "rzyz": (2, 1, 1, 1),
 }
 
-_TUPLE2AXES = dict((v, k) for k, v in list(_AXES2TUPLE.items()))
+_TUPLE2AXES = {v: k for k, v in _AXES2TUPLE.items()}
 
 
 def vector_norm(data, axis=None, out=None):
@@ -1744,10 +1743,10 @@ def vector_norm(data, axis=None, out=None):
         out = numpy.atleast_1d(numpy.sum(data, axis=axis))
         numpy.sqrt(out, out)
         return out
-    else:
-        data *= data
-        numpy.sum(data, axis=axis, out=out)
-        numpy.sqrt(out, out)
+    data *= data
+    numpy.sum(data, axis=axis, out=out)
+    numpy.sqrt(out, out)
+    return None
 
 
 def unit_vector(data, axis=None, out=None):
@@ -1792,6 +1791,7 @@ def unit_vector(data, axis=None, out=None):
     data /= length
     if out is None:
         return data
+    return None
 
 
 def random_vector(size):
@@ -1858,6 +1858,7 @@ def angle_between_vectors(v0, v1, directed=True, axis=0):
     v1 = numpy.array(v1, dtype=numpy.float64, copy=False)
     dot = numpy.sum(v0 * v1, axis=axis)
     dot /= vector_norm(v0, axis=axis) * vector_norm(v1, axis=axis)
+    dot = numpy.clip(dot, -1.0, 1.0)
     return numpy.arccos(dot if directed else numpy.fabs(dot))
 
 
@@ -1909,10 +1910,17 @@ def is_same_transform(matrix0, matrix1):
     return numpy.allclose(matrix0, matrix1)
 
 
-def _import_module(name, package=None, warn=True, prefix="_py_", ignore="_"):
+def is_same_quaternion(q0, q1):
+    """Return True if two quaternions are equal."""
+    q0 = numpy.array(q0)
+    q1 = numpy.array(q1)
+    return numpy.allclose(q0, q1) or numpy.allclose(q0, -q1)
+
+
+def _import_module(name, package=None, warn=True, postfix="_py", ignore="_"):
     """Try import all public attributes from module into global namespace.
 
-    Existing attributes with name clashes are renamed with prefix.
+    Existing attributes with name clashes are renamed with postfix.
     Attributes starting with underscore are ignored by default.
 
     Return True on successful import.
@@ -1926,23 +1934,24 @@ def _import_module(name, package=None, warn=True, prefix="_py_", ignore="_"):
             module = import_module(name)
         else:
             module = import_module("." + name, package=package)
-    except ImportError:
+    except ImportError as err:
         if warn:
-            warnings.warn("failed to import module %s" % name, stacklevel=2)
+            warnings.warn(str(err), stacklevel=2)
     else:
         for attr in dir(module):
             if ignore and attr.startswith(ignore):
                 continue
-            if prefix:
+            if postfix:
                 if attr in globals():
-                    globals()[prefix + attr] = globals()[attr]
+                    globals()[attr + postfix] = globals()[attr]
                 elif warn:
                     warnings.warn("no Python implementation of " + attr, stacklevel=2)
             globals()[attr] = getattr(module, attr)
         return True
+    return False
 
 
-_import_module("_transformations", package="director.thirdparty", warn=False)
+is_optimized = _import_module("_transformations", package="director.thirdparty", warn=False)
 
 if __name__ == "__main__":
     import doctest

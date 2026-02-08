@@ -2,12 +2,15 @@
 Visualization classes and utilities for displaying VTK objects in Director.
 """
 
+import functools
+
 import numpy as np
 
 import director.applogic as app
 import director.objectmodel as om
 import director.vtkAll as vtk
 from director import callbacks, filterUtils
+from director import vtkNumpy as vnp
 from director.debugVis import DebugData
 from director.fieldcontainer import FieldContainer
 from director.frame_properties import FrameProperties
@@ -276,6 +279,11 @@ class PolyDataItem(om.ObjectModelItem):
             self.polyData.GetPointData().SetActiveScalars(None)
             return
 
+        if arrayName == "Solid Color" and self.actor.GetTexture():
+            tex = self.actor.GetTexture()
+            tex.SetLookupTable(lut)
+            return
+
         array = self.polyData.GetPointData().GetArray(arrayName)
         if not array:
             print("colorBy(%s): array not found" % arrayName)
@@ -285,12 +293,21 @@ class PolyDataItem(om.ObjectModelItem):
 
         self.polyData.GetPointData().SetActiveScalars(arrayName)
 
-        if not lut:
+        is_colors_array = array.GetNumberOfComponents() == 3 and array.GetDataType() == vtk.VTK_UNSIGNED_CHAR
+        if not lut and not is_colors_array:
             lut = self._getDefaultColorMap(array, scalarRange)
 
         self.mapper.ScalarVisibilityOn()
-        self.mapper.SetUseLookupTableScalarRange(True)
-        self.mapper.SetLookupTable(lut)
+        if is_colors_array:
+            self.mapper.SetColorModeToDirectScalars()
+            self.mapper.SetUseLookupTableScalarRange(False)
+            if lut:
+                self.mapper.SetLookupTable(lut)
+        else:
+            self.mapper.SetColorModeToMapScalars()
+            self.mapper.SetUseLookupTableScalarRange(True)
+            if lut:
+                self.mapper.SetLookupTable(lut)
         self.mapper.SetInterpolateScalarsBeforeMapping(not self._isPointCloud())
 
         if self.getProperty("Visible"):
@@ -490,7 +507,12 @@ class PolyDataItem(om.ObjectModelItem):
         title = self.properties.getPropertyEnumValue("Color By")
         view = self.views[0]
         lut = self.mapper.GetLookupTable()
-        self.scalarBarWidget = createScalarBarWidget(view, lut, title)
+        if self.scalarBarWidget:
+            bar = self.scalarBarWidget.GetScalarBarActor()
+            bar.SetTitle(title)
+            bar.SetLookupTable(lut)
+        else:
+            self.scalarBarWidget = createScalarBarWidget(view, lut, title)
         self._renderAllViews()
 
     def _setScalarBarTextColor(self, color=(0, 0, 0)):
@@ -919,11 +941,22 @@ def updateImage(image, name, **kwargs):
     return obj
 
 
-def createAxesPolyData(scale, useTube, tubeWidth=0.002):
+def createAxesPolyData(scale, useTube=False, tubeWidth=0.002):
+    return shallowCopy(_createAxesPolyData(scale, useTube, tubeWidth))
+
+
+@functools.lru_cache()
+def _createAxesPolyData(scale, useTube=False, tubeWidth=0.002):
     axes = vtk.vtkAxes()
     axes.SetComputeNormals(0)
     axes.SetScaleFactor(scale)
     axes.Update()
+
+    colors = np.array(
+        [[255, 0, 0], [255, 0, 0], [0, 255, 0], [0, 255, 0], [0, 0, 255], [0, 0, 255]],
+        dtype=np.uint8,
+    )
+    vnp.addNumpyToVtk(axes.GetOutput(), colors, "RGB255")
 
     if useTube:
         tube = vtk.vtkTubeFilter()
@@ -933,7 +966,7 @@ def createAxesPolyData(scale, useTube, tubeWidth=0.002):
         tube.Update()
         axes = tube
 
-    return shallowCopy(axes.GetOutput())
+    return axes.GetOutput()
 
 
 class FrameItem(PolyDataItem):
@@ -967,13 +1000,14 @@ class FrameItem(PolyDataItem):
 
         # Set Edit as the first property
         self.properties.setPropertyIndex("Edit", 0)
+        self.properties.setPropertyIndex("Scale", 1)
 
         # Initialize callbacks with FrameModified signal
         self.callbacks = callbacks.CallbackRegistry(["FrameModified"])
         self.observerTag = self.transform.AddObserver("ModifiedEvent", self.onTransformModified)
         self._updateAxesGeometry()
 
-        self.setProperty("Color By", "Axes")
+        self.setProperty("Color By", "RGB255")
         self.setProperty("Icon", om.Icons.Axes)
         self._updateFrameWidget()
 
@@ -1887,19 +1921,21 @@ class TextItem(om.ObjectModelItem):
 def updateText(text, name, **kwargs):
     obj = om.findObjectByName(name, parent=getParentObj(kwargs.get("parent")))
     if obj is None:
-        obj or showText(text, name, **kwargs)
+        obj = showText(text, name, **kwargs)
     else:
         obj.setProperty("Text", text)
     return obj
 
 
-def showText(text, name, fontSize=18, position=(10, 10), parent=None, view=None):
+def showText(text, name, fontSize=18, position=(10, 10), color=None, parent=None, view=None):
     view = view or app.getCurrentRenderView()
     assert view
 
     item = TextItem(name, text, view=view)
     item.setProperty("Font Size", fontSize)
     item.setProperty("Position", list(position))
+    if color is not None:
+        item.setProperty("Color", list(color))
 
     if om.isInitialized():
         om.addToObjectModel(item, getParentObj(parent))
