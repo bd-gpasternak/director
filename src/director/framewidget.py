@@ -238,11 +238,12 @@ class FrameWidget(ViewEventFilter):
         self.ringActors = []
         self.axisPolys = []
         self.ringPolys = []
+        self.pickTolerance = 0.001
         self._buildActors()
 
         # Setup picker
         self.picker = vtk.vtkCellPicker()
-        self.picker.SetTolerance(0.001)
+        self.picker.SetTolerance(self.pickTolerance)
         self.picker.PickFromListOn()
         for actor in self.axisActors + self.ringActors:
             self.picker.AddPickList(actor)
@@ -262,6 +263,12 @@ class FrameWidget(ViewEventFilter):
 
     def getActors(self):
         return self.axisActors + self.ringActors
+
+    def setPickTolerance(self, tolerance):
+        """Set pick tolerance for frame widget interactions."""
+        self.pickTolerance = tolerance
+        if self.picker:
+            self.picker.SetTolerance(tolerance)
 
     def _buildActors(self):
         """Build the actors for axes and rings."""
@@ -716,7 +723,7 @@ class FrameWidget(ViewEventFilter):
 
         # Update picker
         self.picker = vtk.vtkCellPicker()
-        self.picker.SetTolerance(0.001)
+        self.picker.SetTolerance(self.pickTolerance)
         self.picker.PickFromListOn()
         for actor in self.axisActors + self.ringActors:
             self.picker.AddPickList(actor)

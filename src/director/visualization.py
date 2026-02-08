@@ -642,6 +642,13 @@ class Image2DItem(om.ObjectModelItem):
         self.addProperty(
             "Height", defaultHeight, attributes=om.PropertyAttributes(minimum=0, maximum=9999, singleStep=50)
         )
+        self.addProperty(
+            "Rotation",
+            0,
+            attributes=om.PropertyAttributes(
+                enumNames=["No Rotation", "90 Degrees CCW", "180 Degrees", "90 Degrees CW"]
+            ),
+        )
         self.addProperty("Keep Aspect Ratio", True, attributes=om.PropertyAttributes(hidden=True))
         self.addProperty(
             "Anchor",
@@ -682,6 +689,7 @@ class Image2DItem(om.ObjectModelItem):
         # the texture input won't update until the next
         # render where this actor is visible
         self.texture.SetInputData(image)
+        self._updateTextureCoordinates()
 
         if self.getProperty("Visible"):
             self._renderAllViews()
@@ -703,7 +711,7 @@ class Image2DItem(om.ObjectModelItem):
         renderer.AddActor(self.actor)
         view.render()
 
-    def _getHeightForWidth(self, image, width):
+    def _getHeightForWidth(self, image, width, rotation=None):
         """Calculate height for a given width maintaining aspect ratio.
 
         Args:
@@ -716,9 +724,13 @@ class Image2DItem(om.ObjectModelItem):
         dims = image.GetDimensions()
         w, h = dims[0], dims[1]
         aspect = w / float(h) if h > 0 else 1.0
+        if rotation is None:
+            rotation = self.getProperty("Rotation") if self.hasProperty("Rotation") else 0
+        if rotation in (1, 3):
+            aspect = 1 / aspect
         return int(np.round(width / aspect))
 
-    def _getWidthForHeight(self, image, height):
+    def _getWidthForHeight(self, image, height, rotation=None):
         """Calculate width for a given height maintaining aspect ratio.
 
         Args:
@@ -731,6 +743,10 @@ class Image2DItem(om.ObjectModelItem):
         dims = image.GetDimensions()
         w, h = dims[0], dims[1]
         aspect = w / float(h) if h > 0 else 1.0
+        if rotation is None:
+            rotation = self.getProperty("Rotation") if self.hasProperty("Rotation") else 0
+        if rotation in (1, 3):
+            aspect = 1 / aspect
         return int(np.round(height * aspect))
 
     def _getAspectRatio(self, image):
@@ -745,6 +761,30 @@ class Image2DItem(om.ObjectModelItem):
         dims = image.GetDimensions()
         w, h = dims[0], dims[1]
         return w / float(h) if h > 0 else 1.0
+
+    def _updateTextureCoordinates(self):
+        if not self.actors:
+            return
+        actor = self.actors[0]
+        mapper = actor.GetMapper()
+        if not mapper:
+            return
+        poly_data = mapper.GetInput()
+        if not poly_data:
+            return
+        tcoords = poly_data.GetPointData().GetTCoords()
+        if not tcoords:
+            return
+        t = vnp.numpy_support.vtk_to_numpy(tcoords)
+        base = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]], dtype=float)
+        rotation = self.getProperty("Rotation")
+        if rotation:
+            base = np.roll(base, rotation, axis=0)
+        if t.shape[0] >= 4:
+            t[:4] = base
+        else:
+            t[:] = base[: t.shape[0]]
+        tcoords.Modified()
 
     def _updatePositionCoordinates(self, view):
         """Update the position coordinates for the image overlay.
@@ -828,6 +868,21 @@ class Image2DItem(om.ObjectModelItem):
                     self.setProperty("Width", new_width)
                 finally:
                     self._syncing_aspect_ratio = False
+            if self.views:
+                self._updatePositionCoordinates(self.views[0])
+        elif propertyName == "Rotation":
+            if self.getProperty("Keep Aspect Ratio"):
+                width = self.getProperty("Width")
+                height = self.getProperty("Height")
+                rotation = self.getProperty("Rotation")
+                self._syncing_aspect_ratio = True
+                try:
+                    if self._getHeightForWidth(self.image, width, rotation=rotation) != height:
+                        self.setProperty("Width", height)
+                        self.setProperty("Height", width)
+                finally:
+                    self._syncing_aspect_ratio = False
+            self._updateTextureCoordinates()
             if self.views:
                 self._updatePositionCoordinates(self.views[0])
         elif propertyName == "Anchor":
@@ -1268,9 +1323,20 @@ def showFrame(frame, name, view=None, parent="data", scale=0.35, visible=True, a
     return item
 
 
+# Pick tolerance parameters are used to compute an adaptive tolerance based on view thickness.
+PICK_TOLERANCE_PARAMETERS = (35, 125)
+
+
+def getPickTolerance(view):
+    """Return a default pick tolerance computed from view thickness."""
+    m, b = PICK_TOLERANCE_PARAMETERS
+    return 1 / (m * view.camera().GetThickness() + b)
+
+
 def pickProp(displayPoint, view):
     """Pick a prop at the given display point."""
-    for tolerance in (0.0, 0.005, 0.01):
+    tol = getPickTolerance(view)
+    for tolerance in (0.0, tol, tol * 2):
         pickType = "render" if tolerance == 0.0 else "cells"
         pickData = pickPoint(displayPoint, view, pickType=pickType, tolerance=tolerance)
         pickedPoint = pickData.pickedPoint
@@ -1307,7 +1373,7 @@ def getRayFromDisplayPoint(view, displayPoint):
     return worldPt1, worldPt2
 
 
-def pickPoint(displayPoint, view, obj=None, pickType="points", tolerance=0.01):
+def pickPoint(displayPoint, view, obj=None, pickType="points", tolerance=None):
     """
     Pick a point/object at the given display point.
 
@@ -1331,6 +1397,9 @@ def pickPoint(displayPoint, view, obj=None, pickType="points", tolerance=0.01):
     if isinstance(obj, str):
         obj = om.findObjectByName(obj)
         assert obj
+
+    if tolerance is None:
+        tolerance = getPickTolerance(view)
 
     wasTexturedBackground = False
     if pickType == "render":
@@ -1414,6 +1483,15 @@ def findPickedObject(displayPoint, view):
     pickedPoint, pickedProp, pickedDataset = pickProp(displayPoint, view)
     obj = getObjectByProp(pickedProp) or getObjectByDataSet(pickedDataset)
     return obj, pickedPoint
+
+
+def updateFramePickTolerances(view, tolerance=None):
+    """Update pick tolerance for all active frame widgets."""
+    if tolerance is None:
+        tolerance = getPickTolerance(view)
+    for obj in om.getObjects():
+        if isinstance(obj, FrameItem) and obj.frameWidget:
+            obj.frameWidget.setPickTolerance(tolerance)
 
 
 def mapMousePosition(widget, mouseEvent):

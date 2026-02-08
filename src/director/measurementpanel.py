@@ -86,6 +86,9 @@ class MeasurementPanel:
         ui_file = os.path.join(os.path.dirname(__file__), "assets", "measurement_panel.ui")
         self.widget, self.ui = loadUi(ui_file)
 
+        self.ui.toleranceSpinBox.setValue(1.0)
+        self.ui.toleranceSpinBox.setSingleStep(0.1)
+        self.ui.toleranceSpinBox.setDecimals(2)
         self.ui.enabledCheck.toggled.connect(self.onEnabledCheckBox)
         self.ui.clearButton.clicked.connect(self.onClear)
 
@@ -348,7 +351,7 @@ class MeasurementPanel:
         else:
             raise Exception("unknown pick type")
 
-        tolerance = self.ui.toleranceSpinBox.value()
+        tolerance = self.ui.toleranceSpinBox.value() * vis.getPickTolerance(self.view)
         pickPointFields = vis.pickPoint(displayPoint, self.view, pickType=pickType, tolerance=tolerance)
         worldPoint = pickPointFields.pickedPoint
         prop = pickPointFields.pickedProp

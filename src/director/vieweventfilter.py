@@ -1,5 +1,6 @@
 """View event filter for handling mouse and keyboard events in VTK views."""
 
+import vtk
 from qtpy.QtCore import QEvent, QObject, QPoint, Qt
 from qtpy.QtGui import QCursor
 
@@ -7,6 +8,8 @@ from qtpy.QtGui import QCursor
 class ViewEventFilter(QObject):
     """Event filter for VTK views using Qt event filtering."""
 
+    START_RENDER_EVENT = "START_RENDER_EVENT"
+    END_RENDER_EVENT = "END_RENDER_EVENT"
     LEFT_DOUBLE_CLICK_EVENT = "LEFT_DOUBLE_CLICK_EVENT"
 
     def __init__(self, view):
@@ -15,11 +18,19 @@ class ViewEventFilter(QObject):
         self._leftMouseStart = None
         self._rightMouseStart = None
         self._handlers = {}
+        self._render_observers = []
 
         # Install event filter on the VTK widget
         vtk_widget = view.vtkWidget()
         if vtk_widget:
             vtk_widget.installEventFilter(self)
+
+        render_window = getattr(view, "renderWindow", None)
+        if callable(render_window):
+            render_window = view.renderWindow()
+            if render_window:
+                self._render_observers.append(render_window.AddObserver(vtk.vtkCommand.StartEvent, self._onStartRender))
+                self._render_observers.append(render_window.AddObserver(vtk.vtkCommand.EndEvent, self._onEndRender))
 
     def eventFilter(self, obj, event):
         """Qt event filter implementation. Returns True to consume event, False to continue."""
@@ -163,3 +174,26 @@ class ViewEventFilter(QObject):
         vtk_widget = self.view.vtkWidget()
         if vtk_widget:
             vtk_widget.removeEventFilter(self)
+
+        if self._render_observers:
+            render_window = getattr(self.view, "renderWindow", None)
+            if callable(render_window):
+                render_window = self.view.renderWindow()
+                if render_window:
+                    for observer in self._render_observers:
+                        render_window.RemoveObserver(observer)
+            self._render_observers = []
+
+    def _onStartRender(self, obj, event):
+        self.onStartRender()
+
+    def _onEndRender(self, obj, event):
+        self.onEndRender()
+
+    def onStartRender(self):
+        """Override in subclass for render start events."""
+        return self.callHandler(self.START_RENDER_EVENT, self.view)
+
+    def onEndRender(self):
+        """Override in subclass for render end events."""
+        return self.callHandler(self.END_RENDER_EVENT, self.view)

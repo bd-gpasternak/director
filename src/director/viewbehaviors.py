@@ -214,3 +214,7 @@ class ViewBehaviors(ViewEventFilter):
         consumed = consumed or (key in ViewBehaviors.CONSUMED_KEYS)
 
         return consumed
+
+    def onEndRender(self):
+        """Update frame pick tolerance after rendering."""
+        vis.updateFramePickTolerances(self.view)
