@@ -52,22 +52,24 @@ def _filter_state(state, names_to_filter):
         state[key] = {k: v for k, v in items.items() if k not in names_to_filter}
 
 
-def save_object_properties(objs, settings_key):
+def save_object_properties(
+    objs, settings_key, include_attributes: bool = True, settings: Optional[QtCore.QSettings] = None
+):
     state_list = []
     for obj in objs:
         obj_path = obj.getObjectTree().getObjectPath(obj)
-        prop_state = obj.properties.get_state_dict()
+        prop_state = obj.properties.get_state_dict(include_attributes=include_attributes)
         if isinstance(obj, FrameItem) and not obj.properties.name == "grid":
             _filter_state(prop_state, [FrameProperties.POSITION_PROPERTY, FrameProperties.RPY_PROPERTY])
         state_list.append((obj_path, prop_state))
     serialized = json.dumps(state_list)
-    qsettings = _get_settings()
+    qsettings = _get_settings(settings)
     qsettings.setValue(settings_key, serialized)
     qsettings.sync()
 
 
-def restore_object_properties(objs, settings_key, merge=True):
-    qsettings = _get_settings()
+def restore_object_properties(objs, settings_key, merge=True, settings: Optional[QtCore.QSettings] = None):
+    qsettings = _get_settings(settings)
     serialized = qsettings.value(settings_key, None)
     if not serialized:
         return

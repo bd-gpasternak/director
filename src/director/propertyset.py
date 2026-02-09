@@ -247,13 +247,16 @@ class PropertySet(object):
     # Serialization helpers
     # ------------------------------------------------------------------
 
-    def get_state_dict(self) -> Dict[str, Any]:
+    def get_state_dict(self, include_attributes: bool = True) -> Dict[str, Any]:
         """Return a JSON-serializable snapshot of properties and attributes."""
         properties_copy = OrderedDict()
         for name, value in self._properties.items():
             properties_copy[name] = copy.deepcopy(value)
 
-        attributes_copy = {name: attrs.to_dict() for name, attrs in self._attributes.items()}
+        if include_attributes:
+            attributes_copy = {name: attrs.to_dict() for name, attrs in self._attributes.items()}
+        else:
+            attributes_copy = {}
         return {"properties": properties_copy, "attributes": attributes_copy}
 
     def restore_from_state_dict(self, state: Dict[str, Any], merge: bool = True, verbose: bool = False):
