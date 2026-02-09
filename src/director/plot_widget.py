@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Iterable
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pyqtgraph as pg
 import qtpy.QtCore as QtCore
@@ -64,6 +65,28 @@ class PlotObjItem(om.ObjectModelItem):
         self.addProperty("Y Units", "")
         self.addProperty("Visible", True)
 
+        self.colormap_names = [
+            "Pastel1",
+            "Pastel2",
+            "Paired",
+            "Accent",
+            "Dark2",
+            "Set1",
+            "Set2",
+            "Set3",
+            "tab10",
+            "tab20",
+            "tab20b",
+            "tab20c",
+        ]
+        default_cmap = "Set1"
+        default_idx = self.colormap_names.index(default_cmap) if default_cmap in self.colormap_names else 0
+        self.addProperty(
+            "Colormap",
+            default_idx,
+            attributes=om.PropertyAttributes(enumNames=self.colormap_names),
+        )
+
     def _onPropertyChanged(self, propertySet, propertyName):
         om.ObjectModelItem._onPropertyChanged(self, propertySet, propertyName)
         if propertyName == "Title":
@@ -78,6 +101,34 @@ class PlotObjItem(om.ObjectModelItem):
             dock = self.plot_widget._plot_docks.get(self.plot_item)
             if dock:
                 dock.setVisible(self.getProperty(propertyName))
+        elif propertyName == "Colormap":
+            self._update_series_colors()
+
+    def _update_series_colors(self):
+        cmap_idx = self.getProperty("Colormap")
+        if cmap_idx < 0 or cmap_idx >= len(self.colormap_names):
+            return
+        cmap_name = self.colormap_names[cmap_idx]
+
+        entry = self.plot_widget._plot_entries.get(self.plot_item)
+        if not entry:
+            return
+
+        for i, series in enumerate(entry.line_series):
+            color = self.plot_widget._get_color_for_index(i, cmap_name)
+
+            # Update PlotSeriesItem if it exists
+            series_item = entry.series_items.get(series)
+            if series_item:
+                series_item.setProperty("Color", list(color))
+            else:
+                # Fallback if no series item (shouldn't happen if OM is active)
+                c = [int(x * 255) for x in color]
+                pen = pg.mkPen(c, width=2)
+                series.setPen(pen)
+                if series.opts.get("symbol") is not None:
+                    series.setSymbolPen(pen)
+                    series.setSymbolBrush(pg.mkBrush(c))
 
     def onRemoveFromObjectModel(self):
         om.ObjectModelItem.onRemoveFromObjectModel(self)
@@ -172,6 +223,7 @@ class PlotWidget(QtCore.QObject):
         self._selected_plot: pg.PlotItem | None = None
         self.object_model = None
         self._plots_removing_from_om = set()
+        self.colormap_name = "Set1"
 
         # Apply custom styling patch
         DockLabel.updateStyle = updateStylePatched
@@ -393,6 +445,13 @@ class PlotWidget(QtCore.QObject):
 
         time_offsets_s = timestamps_s - self.start_time_s
 
+        # Determine colormap from OM if available
+        cmap_name = None
+        if entry.object_item:
+            cmap_idx = entry.object_item.getProperty("Colormap")
+            if hasattr(entry.object_item, "colormap_names") and 0 <= cmap_idx < len(entry.object_item.colormap_names):
+                cmap_name = entry.object_item.colormap_names[cmap_idx]
+
         for label, values in series_list:
             values = np.asarray(values)
             if values.ndim == 1:
@@ -400,7 +459,7 @@ class PlotWidget(QtCore.QObject):
 
             for column in range(values.shape[1]):
                 column_name = label if values.shape[1] == 1 else f"{label}[{column}]"
-                pen = self._pen_for_index(color_index)
+                pen = self._pen_for_index(color_index, colormap_name=cmap_name)
                 color_index += 1
                 line_series = plot_item.plot(time_offsets_s, values[:, column], name=column_name, pen=pen)
                 entry.line_series.append(line_series)
@@ -429,9 +488,28 @@ class PlotWidget(QtCore.QObject):
             hline.setPos(value)
             entry.horizontal_lines.append(hline)
 
-    @staticmethod
-    def _pen_for_index(index):
-        return pg.mkPen(pg.intColor(index), width=2)
+    def _get_color_for_index(self, index, colormap_name=None):
+        cmap_name = colormap_name or self.colormap_name
+        try:
+            cmap = plt.get_cmap(cmap_name)
+        except Exception:
+            cmap = plt.get_cmap("Set1")
+
+        if hasattr(cmap, "colors"):
+            # ListedColormap (e.g. Set1, tab10)
+            colors = cmap.colors
+            color = colors[index % len(colors)]
+        else:
+            # Continuous colormap (e.g. viridis) - sample evenly or cycle
+            # Fallback to cycling through 10 points
+            color = cmap((index % 10) / 10.0)
+        return color[:3]
+
+    def _pen_for_index(self, index, colormap_name=None):
+        color = self._get_color_for_index(index, colormap_name)
+        # Convert 0-1 floats to 0-255 integers for pyqtgraph
+        c = [int(x * 255) for x in color]
+        return pg.mkPen(c, width=2)
 
     def _make_click_handler(self, line_series):
         def handler():
@@ -632,15 +710,59 @@ class PlotInteractionViewBox(pg.ViewBox):
         if self.scene() is None:
             return None
 
-        for item in self.scene().items(pos):
+        items = self.scene().items(pos)
+        candidates = []
+        for item in items:
             if isinstance(item, pg.PlotDataItem):
-                return item
-            # Handle cases where we hit the curve or scatter item directly
-            if isinstance(item, (pg.PlotCurveItem, pg.ScatterPlotItem)):
+                if item not in candidates:
+                    candidates.append(item)
+            elif isinstance(item, (pg.PlotCurveItem, pg.ScatterPlotItem)):
                 parent = item.parentItem()
                 if isinstance(parent, pg.PlotDataItem):
-                    return parent
-        return None
+                    if parent not in candidates:
+                        candidates.append(parent)
+
+        if not candidates:
+            return None
+
+        if len(candidates) == 1:
+            return candidates[0]
+
+        # Tie-breaker: find closest curve
+        # Map mouse to view coordinates
+        view_pos = self.mapSceneToView(pos)
+        min_dist = float("inf")
+        best_item = candidates[0]
+
+        for item in candidates:
+            x, y = item.getData()
+            if x is None or len(x) == 0:
+                continue
+
+            # Find closest index in x
+            # Assumes x is sorted
+            idx = np.searchsorted(x, view_pos.x())
+
+            # Check points around idx
+            indices = []
+            if idx < len(x):
+                indices.append(idx)
+            if idx > 0:
+                indices.append(idx - 1)
+
+            # Calculate screen distance for these points
+            for i in indices:
+                # Use item.curve.mapToScene if possible, but mapToScene(x,y) from ViewBox is easier
+                # providing the item is in the ViewBox's coordinate system (which it is)
+                pt_data = QtCore.QPointF(float(x[i]), float(y[i]))
+                pt_scene = self.mapViewToScene(pt_data)
+                # Euclidean distance squared is enough for comparison
+                d2 = (pt_scene.x() - pos.x()) ** 2 + (pt_scene.y() - pos.y()) ** 2
+                if d2 < min_dist:
+                    min_dist = d2
+                    best_item = item
+
+        return best_item
 
     def _set_series_style(self, series: pg.PlotDataItem, style: str):
         # Attempt to recover the base color from current settings

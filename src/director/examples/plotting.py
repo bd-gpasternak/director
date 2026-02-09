@@ -2,15 +2,32 @@
 
 import numpy as np
 import pyqtgraph as pg
-from qtpy.QtWidgets import QApplication
+from qtpy import QtCore
+from qtpy.QtWidgets import QApplication, QSplitter
 
+from director.objectmodel import ObjectModelTree
 from director.plot_widget import PlotWidget
+from director.propertiespanel import PropertiesPanel
+
+
+def connect_to_object_model(plot_widget):
+    model = ObjectModelTree()
+    model.init(propertiesPanel=PropertiesPanel())
+    splitter = QSplitter(QtCore.Qt.Vertical)
+    splitter.addWidget(model.treeView)
+    splitter.addWidget(model.getPropertiesPanel())
+    splitter.show()
+    model.splitter = splitter  # store to avoid garbage collection
+    plot_widget.set_object_model(model)
 
 
 def main():
     app = QApplication([])
 
     plot_widget = PlotWidget()
+
+    # Optional, use the object model to show plot objects and properties
+    connect_to_object_model(plot_widget)
 
     # Generate time array
     t = np.linspace(0, 4 * np.pi, 500)
