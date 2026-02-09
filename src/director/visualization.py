@@ -45,88 +45,77 @@ class MatplotlibColormaps:
             return []
         # Get all registered colormaps
         colormaps = []
-        # Built-in colormaps - try different methods for different matplotlib versions
         try:
-            # Newer matplotlib versions
-            if hasattr(cm, "cmaps_listed"):
-                colormaps.extend(cm.cmaps_listed)
-            # Also try the registry
-            if hasattr(cm, "_colormaps"):
-                colormaps.extend(sorted(cm._colormaps.keys()))
-            # Fallback: try to get from matplotlib directly
-            try:
-                import matplotlib.pyplot as plt
+            # Try to get from matplotlib directly (newer versions)
+            import matplotlib as mpl
 
-                colormaps.extend(plt.colormaps())
-            except:
-                pass
+            if hasattr(mpl, "colormaps"):
+                colormaps.extend(mpl.colormaps())
+            elif hasattr(cm, "cmap_d"):
+                colormaps.extend(cm.cmap_d.keys())
+            else:
+                # Fallback for very old versions
+                colormaps.extend(cm.cmaps_listed.keys())
         except Exception:
-            # If all else fails, return some common colormaps
-            colormaps = [
-                "viridis",
-                "plasma",
-                "inferno",
-                "magma",
-                "jet",
-                "hot",
-                "cool",
-                "spring",
-                "summer",
-                "autumn",
-                "winter",
-            ]
-        # Remove duplicates and sort
-        return sorted(set(colormaps))
+            pass
+        # Remove duplicates, sort, and filter out reversed maps
+        unique_colormaps = sorted(set(colormaps))
+        return [name for name in unique_colormaps if not name.endswith("_r")]
 
     @staticmethod
-    def getColormapArray(name, numColors=256):
+    def getColormapArray(name, numColors=256, repeat=1):
         """Get colormap data as a numpy array.
 
         Args:
             name: Name of the colormap
             numColors: Number of colors to sample
+            repeat: Number of times to repeat the colormap
 
         Returns:
             numpy array of shape (numColors, 3) with RGB values in [0, 1]
         """
         if not MATPLOTLIB_AVAILABLE:
-            return np.zeros((numColors, 3))
+            return np.ones((numColors, 3))
 
         try:
             # Try newer matplotlib API first
-            try:
+            if hasattr(matplotlib, "colormaps") and name in matplotlib.colormaps:
                 colormap = matplotlib.colormaps[name]
-            except (KeyError, AttributeError):
+            else:
                 # Fallback to older API
                 colormap = cm.get_cmap(name)
+
             # Sample the colormap
-            colors = colormap(np.linspace(0, 1, numColors))
+            if repeat > 1:
+                x = np.linspace(0, repeat, numColors)
+                x = x % 1.0
+            else:
+                x = np.linspace(0, 1, numColors)
+
+            colors = colormap(x)
             # Extract RGB (first 3 components, ignore alpha if present)
             return colors[:, :3]
-        except (ValueError, KeyError):
-            # Fallback to default colormap if name not found
-            try:
-                colormap = matplotlib.colormaps["viridis"]
-            except (KeyError, AttributeError):
-                colormap = cm.get_cmap("viridis")
-            colors = colormap(np.linspace(0, 1, numColors))
-            return colors[:, :3]
+        except (ValueError, KeyError, AttributeError):
+            return np.ones((numColors, 3))
 
     @staticmethod
-    def getColormapAsVTK(name, scalarRange=None, numColors=256, reverse=False):
-        """Get colormap as a VTK lookup table.
+    @functools.lru_cache(maxsize=128)
+    def getColormapAsVTK(name, scalarRange, numColors=256, reverse=False, repeat=1, discretize=0):
+        """Get colormap as a VTK color transfer function.
 
         Args:
             name: Name of the matplotlib colormap
             scalarRange: Optional tuple (min, max) for scalar range. If None, uses (0, 1)
-            numColors: Number of colors in the lookup table
+            numColors: Number of samples to take from the colormap (default 256)
             reverse: If True, reverse the colormap
+            repeat: Number of times to repeat the colormap
+            discretize: If > 0, use this number of discrete colors (bands)
 
         Returns:
-            vtkLookupTable instance
+            vtkColorTransferFunction or vtkDiscretizableColorTransferFunction
         """
         if not MATPLOTLIB_AVAILABLE:
-            # Fallback to default VTK lookup table
+            # Fallback
             lut = vtk.vtkLookupTable()
             lut.SetNumberOfColors(numColors)
             if scalarRange:
@@ -134,29 +123,33 @@ class MatplotlibColormaps:
             lut.Build()
             return lut
 
-        # Get colormap data as array
-        colors = MatplotlibColormaps.getColormapArray(name, numColors)
+        if discretize > 0:
+            f = vtk.vtkDiscretizableColorTransferFunction()
+            f.DiscretizeOn()
+            f.SetNumberOfValues(discretize)
+        else:
+            f = vtk.vtkColorTransferFunction()
 
-        # Reverse if requested
+        # Get colormap data as array
+        # We sample the colormap at 'numColors' points to create the piecewise linear transfer function
+        colors = MatplotlibColormaps.getColormapArray(name, numColors, repeat=repeat)
+
         if reverse:
             colors = colors[::-1]
 
-        # Create VTK lookup table
-        lut = vtk.vtkLookupTable()
-        lut.SetNumberOfColors(numColors)
+        range_min, range_max = scalarRange if scalarRange else (0.0, 1.0)
+        value_range = range_max - range_min
 
-        # Set scalar range
-        if scalarRange:
-            lut.SetRange(scalarRange)
-        else:
-            lut.SetRange(0.0, 1.0)
-
-        # Set colors
         for i in range(numColors):
-            lut.SetTableValue(i, colors[i][0], colors[i][1], colors[i][2], 1.0)
+            # Calculate scalar value for this color sample
+            # We want to map the index i (0 to numColors-1) to the scalar range
+            t = i / (numColors - 1) if numColors > 1 else 0.0
+            scalar_value = range_min + t * value_range
 
-        lut.Build()
-        return lut
+            f.AddRGBPoint(scalar_value, colors[i][0], colors[i][1], colors[i][2])
+
+        f.Build()
+        return f
 
 
 class PolyDataItem(om.ObjectModelItem):
@@ -222,6 +215,8 @@ class PolyDataItem(om.ObjectModelItem):
             colormapNames = ["Default"]
         self.addProperty("Color Map", 0, attributes=om.PropertyAttributes(enumNames=colormapNames, hidden=True))
         self.addProperty("Color Map Reverse", False, attributes=om.PropertyAttributes(hidden=True))
+        self.addProperty("Color Map Repeat", 1, attributes=om.PropertyAttributes(minimum=1, maximum=999, hidden=True))
+        self.addProperty("Discrete Colors", 0, attributes=om.PropertyAttributes(minimum=0, maximum=999, hidden=True))
 
         self._updateSurfaceProperty()
         self._updateColorByProperty()
@@ -377,9 +372,17 @@ class PolyDataItem(om.ObjectModelItem):
             self._updateColorBy()
         elif propertyName == "Show Scalar Bar":
             self._updateScalarBar()
-        elif propertyName in ("Scalar Range Min", "Scalar Range Max"):
-            self._onScalarRangePropertyChanged()
-        elif propertyName in ("Color Map", "Color Map Reverse"):
+        elif propertyName == "Scalar Range":
+            scalarRange = self.getProperty(propertyName)
+            arrayName = self.properties.getPropertyEnumValue("Color By")
+            if arrayName != "Solid Color":
+                # Update range map
+                array = self.polyData.GetPointData().GetArray(arrayName)
+                if array:
+                    name = array.GetName() if array.GetName() else ""
+                    self.rangeMap[name] = scalarRange
+                self.setScalarRange(scalarRange[0], scalarRange[1])
+        elif propertyName in ("Color Map", "Color Map Reverse", "Color Map Repeat", "Discrete Colors"):
             # Update color mapping when colormap changes
             arrayName = self.properties.getPropertyEnumValue("Color By")
             if arrayName != "Solid Color":
@@ -396,6 +399,19 @@ class PolyDataItem(om.ObjectModelItem):
         arrayName = self.properties.getPropertyEnumValue("Color By")
         if arrayName != "Solid Color":
             self.colorBy(arrayName, scalarRange=(rangeMin, rangeMax))
+
+            # Update property if it exists and differs
+            if self.hasProperty("Scalar Range"):
+                current = self.getProperty("Scalar Range")
+                if current[0] != rangeMin or current[1] != rangeMax:
+                    self.setProperty("Scalar Range", [rangeMin, rangeMax])
+
+            # Update range map
+            array = self.polyData.GetPointData().GetArray(arrayName)
+            if array:
+                name = array.GetName() if array.GetName() else ""
+                self.rangeMap[name] = (rangeMin, rangeMax)
+
             # Update scalar bar widget if it's being shown
             if self.scalarBarWidget:
                 lut = self.mapper.GetLookupTable()
@@ -431,6 +447,8 @@ class PolyDataItem(om.ObjectModelItem):
             # Show colormap properties
             self.properties.setPropertyAttribute("Color Map", "hidden", False)
             self.properties.setPropertyAttribute("Color Map Reverse", "hidden", False)
+            self.properties.setPropertyAttribute("Color Map Repeat", "hidden", False)
+            self.properties.setPropertyAttribute("Discrete Colors", "hidden", False)
 
         self._updateScalarBar()
 
@@ -451,6 +469,10 @@ class PolyDataItem(om.ObjectModelItem):
 
         if hidden or arrayName == "Solid Color":
             # Hide properties if not coloring by scalar
+            if self.hasProperty("Scalar Range"):
+                self.properties.setPropertyAttribute("Scalar Range", "hidden", True)
+
+            # Cleanup old properties if they exist
             if self.hasProperty("Scalar Range Min"):
                 self.properties.setPropertyAttribute("Scalar Range Min", "hidden", True)
             if self.hasProperty("Scalar Range Max"):
@@ -460,33 +482,27 @@ class PolyDataItem(om.ObjectModelItem):
             array = self.polyData.GetPointData().GetArray(arrayName)
             if array:
                 name = array.GetName() if array.GetName() else ""
-                scalarRange = self.rangeMap.get(name, array.GetRange())
-                rangeMin, rangeMax = scalarRange
 
-                # Add or update properties
-                if not self.hasProperty("Scalar Range Min"):
+                # Populate range map if missing (similar to visualization1.py)
+                if name not in self.rangeMap:
+                    self.rangeMap[name] = array.GetRange()
+
+                scalarRange = self.rangeMap[name]
+
+                # Add or update property
+                if not self.hasProperty("Scalar Range"):
                     self.addProperty(
-                        "Scalar Range Min", rangeMin, attributes=om.PropertyAttributes(decimals=3, singleStep=0.1)
+                        "Scalar Range", scalarRange, attributes=om.PropertyAttributes(decimals=3, singleStep=0.1)
                     )
                 else:
-                    self.setProperty("Scalar Range Min", rangeMin)
-                    self.properties.setPropertyAttribute("Scalar Range Min", "hidden", False)
+                    self.setProperty("Scalar Range", scalarRange)
+                    self.properties.setPropertyAttribute("Scalar Range", "hidden", False)
 
-                if not self.hasProperty("Scalar Range Max"):
-                    self.addProperty(
-                        "Scalar Range Max", rangeMax, attributes=om.PropertyAttributes(decimals=3, singleStep=0.1)
-                    )
-                else:
-                    self.setProperty("Scalar Range Max", rangeMax)
-                    self.properties.setPropertyAttribute("Scalar Range Max", "hidden", False)
-
-    def _onScalarRangePropertyChanged(self):
-        """Handle changes to scalar range properties."""
-        if self.hasProperty("Scalar Range Min") and self.hasProperty("Scalar Range Max"):
-            rangeMin = self.getProperty("Scalar Range Min")
-            rangeMax = self.getProperty("Scalar Range Max")
-            if rangeMin < rangeMax:
-                self.setScalarRange(rangeMin, rangeMax)
+                # Hide old properties if they exist
+                if self.hasProperty("Scalar Range Min"):
+                    self.properties.setPropertyAttribute("Scalar Range Min", "hidden", True)
+                if self.hasProperty("Scalar Range Max"):
+                    self.properties.setPropertyAttribute("Scalar Range Max", "hidden", True)
 
     def _updateScalarBar(self):
         barEnabled = self.getProperty("Show Scalar Bar")
@@ -553,7 +569,15 @@ class PolyDataItem(om.ObjectModelItem):
                 # Use matplotlib colormap
                 scalarRange = scalarRange or self.rangeMap.get(name, array.GetRange())
                 reverse = self.getProperty("Color Map Reverse") if self.hasProperty("Color Map Reverse") else False
-                return MatplotlibColormaps.getColormapAsVTK(colormapName, scalarRange, numColors=256, reverse=reverse)
+                repeat = self.getProperty("Color Map Repeat") if self.hasProperty("Color Map Repeat") else 1
+                discretize = self.getProperty("Discrete Colors") if self.hasProperty("Discrete Colors") else 0
+
+                # Ensure scalarRange is a tuple for lru_cache hashing
+                scalarRangeTuple = tuple(scalarRange) if scalarRange else None
+
+                return MatplotlibColormaps.getColormapAsVTK(
+                    colormapName, scalarRangeTuple, numColors=256, reverse=reverse, repeat=repeat, discretize=discretize
+                )
 
         # Default behavior: use hue-based lookup table
         blueToRed = (0.667, 0)
