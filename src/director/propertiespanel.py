@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSlider,
@@ -58,6 +59,26 @@ class PropertyEditor(QWidget):
 
     def _updateWidget(self, value):
         """Override in subclasses to update the widget."""
+        pass
+
+
+class LabelEditor(PropertyEditor):
+
+    def __init__(self, propertySet, propertyName, parent=None):
+        super().__init__(propertySet, propertyName, parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.widget = QLabel(self)
+        layout.addWidget(self.widget)
+        
+        # Enums/types get passed in here, this converts them to a string.
+        self.widget.setText(f"{self.getValue()}" if self.getValue() is not None else "")
+
+    def _updateWidget(self, value):
+        self.widget.setText(str(value))
+
+    def attributes_changed(self, attributes):
         pass
 
 
@@ -741,6 +762,8 @@ class PropertiesPanel(QWidget):
         self.tree = QTreeWidget(self)
         self.tree.setHeaderLabels(["Property", "Value"])
         self.tree.header().setStretchLastSection(True)
+        self.tree.setAlternatingRowColors(True)
+
         self.tree.setColumnWidth(0, 200)
         # Disable all selection - no row or cell highlighting needed
         self.tree.setSelectionMode(QTreeWidget.NoSelection)
@@ -853,6 +876,8 @@ class PropertiesPanel(QWidget):
 
     def _createEditor(self, propertyName, value, attributes):
         """Create an appropriate editor widget for a property."""
+        if attributes.readOnly:
+            return LabelEditor(self.propertySet, propertyName)
         if isinstance(value, bool):
             return BoolEditor(self.propertySet, propertyName)
         elif isinstance(value, int):

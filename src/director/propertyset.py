@@ -179,9 +179,10 @@ class PropertySet(object):
     def setProperty(self, propertyName, propertyValue):
         previousValue = self._properties[propertyName]
         attrs = self._attributes[propertyName]
-        propertyValue = self._normalize_property_value(
-            propertyName, propertyValue, existing_value=previousValue, attributes=attrs
-        )
+        if not attrs.readOnly:
+            propertyValue = self._normalize_property_value(
+                propertyName, propertyValue, existing_value=previousValue, attributes=attrs
+            )
         if propertyValue == previousValue:
             return
 
