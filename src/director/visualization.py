@@ -982,7 +982,12 @@ class FrameItem(PolyDataItem):
         self.properties.setPropertyIndex("Scale", 1)
 
         # Initialize callbacks with FrameModified signal
-        self.callbacks = callbacks.CallbackRegistry(["FrameModified"])
+        if hasattr(self, "callbacks"):
+            # Don't overwrite existing callbacks if they exist (e.g. from parent class), 
+            # just add new signal
+            self.callbacks.signals.add("FrameModified")
+        else:
+            self.callbacks = callbacks.CallbackRegistry(["FrameModified"])
         self.observerTag = self.transform.AddObserver("ModifiedEvent", self.onTransformModified)
         self._updateAxesGeometry()
 
