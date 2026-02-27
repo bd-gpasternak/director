@@ -1839,7 +1839,12 @@ class TextItem(om.ObjectModelItem):
 
         if view:
             self.addToView(view)
-
+    
+    def setPosition3D(self, pos):
+        coord = self.actor.GetPositionCoordinate()
+        coord.SetCoordinateSystemToWorld()
+        coord.SetValue(pos)
+        
     def addToView(self, view):
         if view in self.views:
             return
