@@ -876,7 +876,7 @@ class PropertiesPanel(QWidget):
 
     def _createEditor(self, propertyName, value, attributes):
         """Create an appropriate editor widget for a property."""
-        if attributes.readOnly:
+        if attributes.readOnly or attributes.hidden: 
             return LabelEditor(self.propertySet, propertyName)
         if isinstance(value, bool):
             return BoolEditor(self.propertySet, propertyName)
