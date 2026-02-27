@@ -57,8 +57,6 @@ class CallbackRegistry:
         self.signals = set(signals) if signals is not None else None
         # mapping from signal to a set of proxy objects for callbacks
         self.callbacks = dict()
-        # proxy objects for callbacks (so we can use weak references)
-        self._proxy_objs = dict()
 
     def __del__(self):
         # Just in case there are any lingering references
@@ -83,10 +81,14 @@ class CallbackRegistry:
                 raise ValueError("Unknown signal: %s" % sig)
             if sig not in self.callbacks:
                 self.callbacks[sig] = set()
-            if func not in self._proxy_objs:
-                self._proxy_objs[func] = self._BoundMethodProxy(func)
-            proxy = self._proxy_objs[func]
-            self.callbacks[sig].add(proxy)
+            new_proxy = self._BoundMethodProxy(func)
+            # Reuse any existing equal proxy so the returned id is stable for
+            # disconnect. Without _proxy_objs (which kept instances alive via
+            # strong dict-key references), objects can now be GC'd naturally.
+            proxy = next((p for p in self.callbacks[sig] if p == new_proxy), None)
+            if proxy is None:
+                proxy = new_proxy
+                self.callbacks[sig].add(proxy)
             callback_ids.append((sig, id(proxy)))
         # return the id of the proxy object, not the function itself
         return callback_ids[0] if len(callback_ids) == 1 else callback_ids
@@ -112,7 +114,6 @@ class CallbackRegistry:
     def disconnect_all(self):
         """Disconnect all callbacks registered in this registry."""
         self.callbacks.clear()
-        self._proxy_objs.clear()
 
     def process(self, signal, *args, **kwargs):
         """
@@ -146,11 +147,15 @@ class CallbackRegistry:
                 self._obj = ref(callback.__self__)
                 self._func = callback.__func__
                 self._class = callback.__self__.__class__
+                # Capture id at construction so __hash__ is stable for the
+                # lifetime of the proxy (id() can change after GC).
+                self._obj_id = id(callback.__self__)
             else:
                 # callback is a regular function or callable
                 self._obj = None
                 self._func = callback
                 self._class = None
+                self._obj_id = 0
 
         def __call__(self, *args, **kwargs):
             if self._obj is not None:
@@ -175,4 +180,9 @@ class CallbackRegistry:
             return not self == other
 
         def __hash__(self):
-            return id(self._func)
+            # Combine function identity with instance identity so proxies for
+            # different objects with the same method don't all collide in the
+            # same hash bucket (which would degrade set operations to O(n)).
+            # _obj_id is captured at construction time so the hash is stable
+            # even after the referenced object is garbage-collected.
+            return hash((id(self._func), self._obj_id))
