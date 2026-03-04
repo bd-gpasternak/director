@@ -102,20 +102,31 @@ class ViewEventFilter(QObject):
         return False
 
     def getMousePositionInView(self, event):
-        """Get mouse position in view coordinates."""
+        """Get mouse position in view coordinates (physical pixels, VTK convention)."""
         mousePosition = event.pos()
         widget = self.view.vtkWidget()
         if widget:
-            return mousePosition.x(), widget.height() - mousePosition.y()
+            # VTK renderer size is in physical pixels (logical * devicePixelRatio).
+            # Qt mouse event coordinates are in logical pixels, so we must scale
+            # to match the coordinate space that picker.Pick() expects.
+            scale = widget.devicePixelRatioF()
+            x = int(round(mousePosition.x() * scale))
+            y = int(round(mousePosition.y() * scale))
+            h = int(round(widget.height() * scale))
+            return x, h - y
         return mousePosition.x(), mousePosition.y()
 
     def getCursorDisplayPosition(self):
-        """Get cursor display position."""
+        """Get cursor display position (physical pixels, VTK convention)."""
         vtk_widget = self.view.vtkWidget()
         if not vtk_widget:
             return (0, 0)
         cursorPos = vtk_widget.mapFromGlobal(QCursor.pos())
-        return cursorPos.x(), vtk_widget.height() - cursorPos.y()
+        scale = vtk_widget.devicePixelRatioF()
+        x = int(round(cursorPos.x() * scale))
+        y = int(round(cursorPos.y() * scale))
+        h = int(round(vtk_widget.height() * scale))
+        return x, h - y
 
     def onMouseWheel(self, event):
         """Override in subclass for mouse wheel events. Return True to consume event."""

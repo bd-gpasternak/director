@@ -66,11 +66,16 @@ def showRightClickMenu(displayPoint, view):
 
     objectName = getShortenedName(objectName)
 
-    # Convert to widget coordinates (Qt uses top-left origin)
+    # Convert to widget coordinates (Qt uses top-left origin, logical pixels)
     vtk_widget = view.vtkWidget()
     if vtk_widget:
-        # displayPoint is in VTK coordinates (bottom-left origin), convert to Qt coordinates
-        qtPoint = QtCore.QPoint(int(displayPoint[0]), vtk_widget.height() - int(displayPoint[1]))
+        # displayPoint is in physical pixels (VTK convention, bottom-left origin).
+        # Qt mapToGlobal expects logical pixels (top-left origin), so divide by
+        # devicePixelRatioF and flip Y.
+        scale = vtk_widget.devicePixelRatioF()
+        lx = int(round(displayPoint[0] / scale))
+        ly = int(round(vtk_widget.height() - displayPoint[1] / scale))
+        qtPoint = QtCore.QPoint(lx, ly)
         globalPos = vtk_widget.mapToGlobal(qtPoint)
     else:
         globalPos = QtCore.QPoint(int(displayPoint[0]), int(displayPoint[1]))
